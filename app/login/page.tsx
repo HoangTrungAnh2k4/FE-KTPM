@@ -45,7 +45,7 @@ export default function LoginPage() {
                     <img
                         src="https://images.unsplash.com/photo-1529070538774-1843cb3265df?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3&s=6c62f1b4a5d2f7d4f6d9b2a9d9a1c3b8"
                         alt="students"
-                        className="object-cover w-full h-full"
+                        className="w-full h-full object-cover"
                     />
                 </div>
 

@@ -38,7 +38,7 @@ const Header: React.FC = () => {
     return (
         <header className="z-100 fixed flex justify-between items-center bg-primary px-12 py-6 w-full h-[70px] text-white transition-all header">
             <Link href={'/'} className="flex justify-center items-center gap-2 logo">
-                <p className="font-bold text-xl">ITS</p>
+                <p className="font-bold text-2xl">ITS</p>
             </Link>
 
             <ul className="hidden sm:flex justify-center items-center gap-3 ml-16">

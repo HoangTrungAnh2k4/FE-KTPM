@@ -19,12 +19,12 @@ import Image from 'next/image';
 // Menu items.
 const items = [
     {
-        title: 'Quản lý',
-        url: '#',
+        title: 'Subjects',
+        url: '/admin/subjects',
     },
     {
-        title: 'Chinh sua',
-        url: '#',
+        title: 'Users',
+        url: '/admin/users',
     },
 ];
 

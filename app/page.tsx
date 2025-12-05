@@ -6,7 +6,9 @@ export default function Home() {
     const { user } = useUserStore();
 
     if (user?.role === 'admin') {
-        return <></>;
+        return <>
+            <div>tun</div>
+        </>;
     }
 
     return (

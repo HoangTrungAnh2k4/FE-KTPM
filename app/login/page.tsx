@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useUserStore } from '@/store/userStore';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
+import { loginApi } from '@/api/authApi';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -14,8 +15,9 @@ export default function LoginPage() {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
 
@@ -24,10 +26,23 @@ export default function LoginPage() {
             return;
         }
 
-        // Fake login: set a demo user and redirect.
-        setUser({ id: '1', email: `${username}@gmail.com`, name: username, role: username });
+        setLoading(true);
+        try {
+            const res = await loginApi(username, password);
+            console.log(res);
 
-        router.push('/');
+            if (res.status === 200) {
+                router.push('/');
+                localStorage.setItem('access_token', res.data.accessToken);
+                localStorage.setItem('refresh_token', res.data.refreshToken);
+                document.cookie = `access_token=${res.data.accessToken}; path=/;`;
+                document.cookie = `refresh_token=${res.data.refreshToken}; path=/;`;
+            }
+        } catch (err: any) {
+            setError(err.response?.data?.message || 'Đăng ký thất bại. Vui lòng thử lại.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -50,6 +65,7 @@ export default function LoginPage() {
                                 <label className="block font-medium text-neutral-700 text-sm">User name</label>
                                 <div className="mt-2">
                                     <input
+                                        type="email"
                                         value={username}
                                         onChange={(e) => setUsername(e.target.value)}
                                         className="px-4 py-3 border rounded-full outline-none w-full text-sm"
@@ -87,10 +103,20 @@ export default function LoginPage() {
                             <div className="pt-4">
                                 <button
                                     type="submit"
-                                    className="bg-teal-400 hover:bg-teal-500 shadow-sm py-3 rounded-full w-full font-medium text-white text-sm"
+                                    disabled={loading}
+                                    className="bg-teal-400 hover:bg-teal-500 disabled:opacity-50 shadow-sm py-3 rounded-full w-full font-medium text-white text-sm disabled:cursor-not-allowed"
                                 >
-                                    Login
+                                    {loading ? 'Đang đăng nhập...' : 'Login'}
                                 </button>
+                            </div>
+
+                            <div>
+                                <p className="text-neutral-600 text-sm text-center">
+                                    Don't have an account?{' '}
+                                    <a href="/register" className="text-teal-500 hover:underline">
+                                        Register
+                                    </a>
+                                </p>
                             </div>
                         </form>
                     </div>

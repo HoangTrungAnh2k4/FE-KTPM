@@ -14,14 +14,21 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     const noLayoutRoutes = ['/login', '/register'];
     const isNoLayout = noLayoutRoutes.includes(pathname);
 
-    if (isNoLayout) return <>{children}</>;
-
-    // Tạm thời
     useEffect(() => {
-        if (!user) {
-            setUser({ id: '1', email: 'testuser1@gmail.com', name: 'test', role: 'admin' });
+        const cookie = document.cookie.split('; ').find((c) => c.startsWith('user_profile='));
+
+        if (!cookie) return;
+
+        try {
+            const value = decodeURIComponent(cookie.split('=')[1]);
+            const user = JSON.parse(value);
+            setUser(user);
+        } catch (err) {
+            console.error('Failed to parse user_profile cookie', err);
         }
-    }, [user, setUser]);
+    }, [setUser]);
+
+    if (isNoLayout) return <>{children}</>;
 
     if (user?.role === 'admin') {
         return (

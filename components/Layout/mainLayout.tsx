@@ -2,8 +2,10 @@
 
 import { useEffect } from 'react';
 import { useUserStore } from '@/store/userStore';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import Header from './header';
+import { SidebarProvider, SidebarTrigger } from '../UI/sidebar';
+import { AppSidebar } from './app-sidebar';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
@@ -16,17 +18,20 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
     if (user?.role === 'admin') {
         return (
-            <div className="flex">
-                {/* <Sidebar /> */}
-                <div className="pt-[70px]">{children}</div>
-            </div>
+            <SidebarProvider>
+                <AppSidebar />
+                <main>
+                    <SidebarTrigger />
+                    {children}
+                </main>
+            </SidebarProvider>
         );
     }
 
     return (
         <div>
             <Header />
-            <div className="pt-[70px]">{children}</div>
+            <div className="px-20 pt-[70px]">{children}</div>
         </div>
     );
 }

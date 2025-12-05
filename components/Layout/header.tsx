@@ -36,7 +36,7 @@ const Header: React.FC = () => {
     };
 
     return (
-        <header className="z-100 fixed flex justify-between items-center bg-primary px-12 py-6 w-full h-[70px] text-white transition-all header">
+        <header className="z-100 fixed flex justify-between items-center bg-primary px-20 py-6 w-full h-[70px] text-white transition-all header">
             <Link href={'/'} className="flex justify-center items-center gap-2 logo">
                 <p className="font-bold text-2xl">ITS</p>
             </Link>
@@ -69,17 +69,14 @@ const Header: React.FC = () => {
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Image
-                                src="https://www.rophim.me/images/avatars/pack1/14.jpg"
+                                src="https://www.rophim.li/images/avatars/pack1/14.jpg"
                                 alt="Movie App Logo"
                                 width={40}
                                 height={40}
                                 className="border-2 border-white rounded-full cursor-pointer"
                             />
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                            className="z-[101] bg-background2 mt-2 mr-6 border-none w-46 text-white"
-                            align="start"
-                        >
+                        <DropdownMenuContent className="z-[101] bg-white mt-2 mr-6 border-none w-46" align="start">
                             <DropdownMenuLabel>My Account</DropdownMenuLabel>
 
                             <DropdownMenuSeparator className="bg-neutral-500" />

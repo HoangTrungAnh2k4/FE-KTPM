@@ -20,8 +20,8 @@ import {
 
 const Header: React.FC = () => {
     const router = useRouter();
-
     const pathname = usePathname();
+    const [mounted, setMounted] = useState(false);
 
     const isActive = (href: string) => {
         if (!pathname) return false;
@@ -29,9 +29,14 @@ const Header: React.FC = () => {
         return pathname.startsWith(href);
     };
 
-    const { user } = useUserStore((state) => state);
+    const { user, logout } = useUserStore((state) => state);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const handleLogout = () => {
+        logout();
         window.location.href = '/login';
     };
 
@@ -55,7 +60,7 @@ const Header: React.FC = () => {
             </ul>
 
             <div className="hidden sm:flex justify-center items-center gap-4">
-                {!user && (
+                {mounted && !user && (
                     <Link
                         href={'/login'}
                         className="flex justify-center items-start gap-2 bg-white px-3.5 py-2 rounded-full text-black cursor-pointer cursor-pointer"
@@ -65,11 +70,11 @@ const Header: React.FC = () => {
                     </Link>
                 )}
 
-                {user && (
+                {mounted && user && (
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Image
-                                src="https://www.rophim.li/images/avatars/pack1/14.jpg"
+                                src="https://www.rophim.me/images/avatars/pack1/14.jpg"
                                 alt="Movie App Logo"
                                 width={40}
                                 height={40}

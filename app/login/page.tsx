@@ -10,8 +10,11 @@ export default function LoginPage() {
     const router = useRouter();
     const { setUser } = useUserStore();
 
+    // Single login mode for this demo
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    // Role is inferred from credentials; no manual selection
+    const [remember, setRemember] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -24,10 +27,43 @@ export default function LoginPage() {
             return;
         }
 
-        // Fake login: set a demo user and redirect.
-        setUser({ id: '1', email: `${username}@gmail.com`, name: username, role: username });
+        // Infer role from credentials (demo only)
+        // Administrator: admin / admin123
+        // Instructor: instructor / instr123
+        // Student: any other credentials
+        let inferredRole: 'Administrator' | 'Instructor' | 'Student' = 'Student';
+        if (username === 'admin' && password === 'admin123') {
+            inferredRole = 'Administrator';
+        } else if (username === 'instructor' && password === 'instr123') {
+            inferredRole = 'Instructor';
+        }
 
-        router.push('/');
+        // Fake login: set a demo user with selected role and redirect.
+        const user = { id: '1', email: `${username}@example.com`, name: username, role: inferredRole } as const;
+        setUser(user);
+
+        // Also set a cookie so middleware can read it (mirrors zustand persist structure)
+        try {
+            const cookieValue = encodeURIComponent(JSON.stringify({ state: { user } }));
+            const maxAge = remember ? 60 * 60 * 24 * 7 : 60 * 60; // 7 days or 1 hour
+            document.cookie = `user-storage=${cookieValue}; Path=/; Max-Age=${maxAge}`;
+        } catch {}
+
+        // Optionally persist to localStorage when remember checked
+        if (remember) {
+            try {
+                localStorage.setItem('demo_user', JSON.stringify({ id: '1', name: username, role: inferredRole }));
+            } catch {}
+        }
+
+        // Redirect based on role
+        if (inferredRole === 'Administrator') {
+            router.push('/admin/subjects');
+        } else if (inferredRole === 'Instructor') {
+            router.push('/instructor/dashboard');
+        } else {
+            router.push('/');
+        }
     };
 
     return (
@@ -82,6 +118,22 @@ export default function LoginPage() {
                                 </div>
                             </div>
 
+                            {/* Role selection removed; role inferred from credentials */}
+
+                            <div className="flex justify-between items-center text-sm">
+                                <label className="flex items-center gap-2">
+                                    <input
+                                        type="checkbox"
+                                        checked={remember}
+                                        onChange={(e) => setRemember(e.target.checked)}
+                                    />
+                                    <span className="text-neutral-600">Remember me</span>
+                                </label>
+
+                                <button type="button" className="text-neutral-500 hover:underline">
+                                    Forgot Password ?
+                                </button>
+                            </div>
                             {error && <p className="text-red-500 text-sm">{error}</p>}
 
                             <div className="pt-4">

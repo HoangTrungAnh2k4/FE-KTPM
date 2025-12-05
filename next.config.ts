@@ -11,7 +11,9 @@ const nextConfig: NextConfig = {
             },
             {
                 protocol: 'https',
-                hostname: 'www.rophim.li',
+                hostname: 'www.rophim.me',
+                port: '',
+                pathname: '/**',
             },
         ],
     },

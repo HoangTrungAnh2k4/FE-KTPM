@@ -1,41 +1,43 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useUserStore } from '@/store/userStore';
 import { usePathname } from 'next/navigation';
 import Header from './header';
-import { SidebarProvider, SidebarTrigger } from '../UI/sidebar';
-import { AppSidebar } from './app-sidebar';
+import AdminSidebar from './adminSidebar';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
-    const { user, setUser } = useUserStore();
+    const { user } = useUserStore();
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const noLayoutRoutes = ['/login', '/register'];
     const isNoLayout = noLayoutRoutes.includes(pathname);
 
     if (isNoLayout) return <>{children}</>;
 
-    // Tạm thời
-    useEffect(() => {
-        if (!user) {
-            setUser({ id: '1', email: 'testuser1@gmail.com', name: 'test', role: 'admin' });
-        }
-    }, [user, setUser]);
+    // Prevent hydration mismatch by not rendering until mounted
+    if (!mounted) {
+        return <div className="min-h-screen">{children}</div>;
+    }
 
-    if (user?.role === 'admin') {
+    // Admin layout with sidebar
+    if (user?.role === 'Administrator') {
         return (
-            <SidebarProvider>
-                <AppSidebar />
-                <main>
-                    <SidebarTrigger />
+            <div className="flex min-h-screen">
+                <AdminSidebar />
+                <div className="flex-1 ml-64 bg-[#f5f5f5]">
                     {children}
-                </main>
-            </SidebarProvider>
+                </div>
+            </div>
         );
     }
 
-
+    // Default layout for Student and Instructor
     return (
         <div>
             <Header />

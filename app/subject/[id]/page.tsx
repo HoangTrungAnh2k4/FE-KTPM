@@ -1,196 +1,107 @@
-'use client';
+import Link from 'next/link';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/UI/accordion';
+import { MdSlowMotionVideo } from 'react-icons/md';
+import { use } from 'react';
 
-import React, { useState } from 'react';
-
-type Lesson = {
-    id: string;
-    title: string;
-    duration: string;
-    previewable: boolean;
-    completed?: boolean;
-};
-
-type Section = {
-    id: string;
-    title: string;
-    lessons: Lesson[];
-};
-
-export default function CourseDetail({ params }: { params: { id: string } }) {
-    // Mock data — replace with real fetch if needed
-    const [sections] = useState<Section[]>([
-        {
-            id: 's1',
-            title: 'Lessons With Video Content',
-            lessons: [
-                {
-                    id: 'l1',
-                    title: 'Lessons with video content',
-                    duration: '12:30',
-                    previewable: true,
-                    completed: true,
-                },
-                {
-                    id: 'l2',
-                    title: 'Lessons with video content',
-                    duration: '10:05',
-                    previewable: true,
-                    completed: true,
-                },
-                {
-                    id: 'l3',
-                    title: 'Lessons with video content',
-                    duration: '2:25',
-                    previewable: true,
-                    completed: false,
-                },
-            ],
-        },
-        {
-            id: 's2',
-            title: 'Lessons With Video Content',
-            lessons: Array.from({ length: 5 }).map((_, i) => ({
-                id: `s2l${i}`,
-                title: 'Lessons With Video Content',
-                duration: '45 Mins',
-                previewable: false,
-            })),
-        },
-        {
-            id: 's3',
-            title: 'Lessons With Video Content',
-            lessons: Array.from({ length: 5 }).map((_, i) => ({
-                id: `s3l${i}`,
-                title: 'Lessons With Video Content',
-                duration: '45 Mins',
-                previewable: false,
-            })),
-        },
-        {
-            id: 's4',
-            title: 'Lessons With Video Content',
-            lessons: Array.from({ length: 5 }).map((_, i) => ({
-                id: `s4l${i}`,
-                title: 'Lessons With Video Content',
-                duration: '45 Mins',
-                previewable: false,
-            })),
-        },
-    ]);
-
-    const [openIndex, setOpenIndex] = useState<number | null>(0);
-
-    function toggleSection(i: number) {
-        setOpenIndex((prev) => (prev === i ? null : i));
-    }
+export default function CourseDetail({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = use(params);
 
     return (
-        <div className="subject-page" style={{ padding: 16 }}>
-            <h1 style={{ marginBottom: 12 }}>Subject: {params.id}</h1>
-
-            <div style={{ display: 'grid', gap: 12 }}>
-                {sections.map((section, i) => (
-                    <div
-                        key={section.id}
-                        style={{
-                            borderRadius: 8,
-                            overflow: 'hidden',
-                            boxShadow: '0 2px 0 rgba(0,0,0,0.9)',
-                            background: '#fff',
-                        }}
-                    >
-                        <button
-                            onClick={() => toggleSection(i)}
-                            aria-expanded={openIndex === i}
-                            style={{
-                                width: '100%',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                padding: '14px 20px',
-                                background: 'transparent',
-                                border: 'none',
-                                textAlign: 'left',
-                                cursor: 'pointer',
-                            }}
-                        >
-                            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                                <div
-                                    style={{
-                                        transform: openIndex === i ? 'rotate(180deg)' : 'rotate(0)',
-                                        transition: 'transform .2s',
-                                    }}
-                                >
-                                    ▾
+        <div className="py-6">
+            <div className="gap-16 grid grid-cols-1 lg:grid-cols-[1fr_320px]">
+                <Accordion type="multiple" className="space-y-3 w-full" defaultValue={['item-4']}>
+                    {[
+                        { id: 1, title: 'IIFE, Scope, Closure', count: 9 },
+                        { id: 2, title: 'Hoisting, Strict Mode, Data Types', count: 7 },
+                        { id: 3, title: 'This, Bind, Call, Apply', count: 5 },
+                        { id: 4, title: 'Các bài thực hành cần nhiều', count: 3 },
+                        { id: 5, title: 'Vừa giải trí vừa học', count: 3 },
+                        { id: 6, title: 'Hoàn thành khóa học', count: 2 },
+                    ].map((ch) => (
+                        <AccordionItem value={`item-${ch.id}`} key={ch.id}>
+                            <AccordionTrigger className="bg-[#f5f5f5] px-6 hover:no-underline cursor-pointer">
+                                <div className="flex justify-between items-center w-full">
+                                    <div className="flex items-center gap-4">
+                                        <span className="font-medium">
+                                            {ch.id}. {ch.title}
+                                        </span>
+                                    </div>
+                                    <div className="text-muted-foreground text-sm">{ch.count} bài học</div>
                                 </div>
-                                <div style={{ fontWeight: 700 }}>{section.title}</div>
-                            </div>
+                            </AccordionTrigger>
 
-                            <div style={{ display: 'flex', gap: 16, alignItems: 'center', color: '#666' }}>
-                                <div>{section.lessons.length} Lessons</div>
-                                <div>45 Mins</div>
+                            <AccordionContent className="">
+                                {ch.id === 4 ? (
+                                    <div className="divide-y">
+                                        <div className="flex items-center gap-3 px-6 py-4">
+                                            <MdSlowMotionVideo size={22} color="#DC143C" />
+
+                                            <Link
+                                                href={`/subject/${id}/lesson/22`}
+                                                className="flex-1 text-sm hover:underline"
+                                            >
+                                                22. Tìm hiểu về thư viện Redux
+                                            </Link>
+                                            <div className="text-muted-foreground text-sm">35:54</div>
+                                        </div>
+                                        <div className="flex items-center gap-3 px-6 py-4">
+                                            <MdSlowMotionVideo size={22} color="#DC143C" />
+                                            <Link href={`/lesson/${id}/23`} className="flex-1 text-sm hover:underline">
+                                                23. Tự code thư viện build UI
+                                            </Link>
+                                            <div className="text-muted-foreground text-sm">53:54</div>
+                                        </div>
+                                        <div className="flex items-center gap-3 px-6 py-4">
+                                            <MdSlowMotionVideo size={22} color="#DC143C" />
+                                            <Link href={`/lesson/${id}/24`} className="flex-1 text-sm hover:underline">
+                                                24. Code ứng dụng Todo List
+                                            </Link>
+                                            <div className="text-muted-foreground text-sm">01:14:01</div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="p-4 text-muted-foreground text-sm">{ch.count} bài học</div>
+                                )}
+                            </AccordionContent>
+                        </AccordionItem>
+                    ))}
+                </Accordion>
+
+                <aside className="hidden lg:block">
+                    <div className="top-24 sticky bg-white p-4 border rounded-lg">
+                        <div className="flex justify-center items-center bg-[#f5f5f5] mb-4 rounded-md w-full h-44 text-muted-foreground text-sm">
+                            Ảnh khoá học
+                        </div>
+
+                        <h3 className="mb-2 font-semibold text-lg">Tên khóa học mẫu</h3>
+                        <div className="mb-3 text-muted-foreground text-sm">
+                            Giảng viên: <span className="text-foreground">Nguyễn Văn A</span>
+                        </div>
+
+                        <div className="flex justify-between items-center mb-3">
+                            <div className="text-sm">
+                                <div className="font-medium">29 bài học</div>
+                                <div className="text-muted-foreground text-xs">Thời lượng 09:00</div>
                             </div>
+                            <div className="text-right">
+                                <div className="font-medium">4.8 ★</div>
+                                <div className="text-muted-foreground text-xs">(1.2k học viên)</div>
+                            </div>
+                        </div>
+
+                        <div className="mb-4">
+                            <div className="text-muted-foreground text-sm">Mức độ</div>
+                            <div className="font-medium text-foreground">Trung cấp</div>
+                        </div>
+
+                        <button className="bg-rose-600 hover:bg-rose-700 mb-2 py-2 rounded-md w-full text-white">
+                            Ghi danh ngay
                         </button>
-
-                        {openIndex === i && (
-                            <div style={{ padding: 16, borderTop: '1px solid #eee' }}>
-                                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 12 }}>
-                                    {section.lessons.map((lesson) => (
-                                        <li
-                                            key={lesson.id}
-                                            style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'space-between',
-                                            }}
-                                        >
-                                            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                                                <div
-                                                    style={{
-                                                        width: 28,
-                                                        height: 28,
-                                                        borderRadius: 6,
-                                                        background: '#f4f4f6',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                    }}
-                                                >
-                                                    📄
-                                                </div>
-                                                <div>{lesson.title}</div>
-                                            </div>
-
-                                            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                                                {lesson.previewable && (
-                                                    <button
-                                                        onClick={() => alert(`Preview ${lesson.title}`)}
-                                                        style={{
-                                                            background: '#0078d4',
-                                                            color: '#fff',
-                                                            border: 'none',
-                                                            padding: '6px 12px',
-                                                            borderRadius: 8,
-                                                            cursor: 'pointer',
-                                                        }}
-                                                    >
-                                                        Preview
-                                                    </button>
-                                                )}
-
-                                                <div style={{ color: '#444' }}>{lesson.duration}</div>
-
-                                                <div style={{ width: 18 }}>
-                                                    {lesson.completed ? '✔️' : lesson.previewable ? '' : '🔒'}
-                                                </div>
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
+                        <button className="py-2 border border-gray-200 rounded-md w-full text-sm">
+                            Thêm vào danh sách
+                        </button>
                     </div>
-                ))}
+                </aside>
             </div>
         </div>
     );

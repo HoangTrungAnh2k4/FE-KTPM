@@ -1,8 +1,18 @@
+'use client';
+
+import { useUserStore } from '@/store/userStore';
+
 export default function Home() {
+    const { user } = useUserStore();
+
+    if (user?.role === 'admin') {
+        return <></>;
+    }
+
     return (
         <main className="bg-white min-h-screen">
             {/* Hero */}
-            <div className="relative bg-primary">
+            <div className="relative bg-primary -mx-20">
                 <div className="flex mx-auto py-10 max-w-7xl">
                     <div className="space-y-10 w-1/2 text-white">
                         <h1 className="font-extrabold text-5xl leading-tight">

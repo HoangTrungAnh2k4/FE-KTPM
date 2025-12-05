@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import Link from 'next/link';
 
 type Props = {
     image: string;
@@ -61,9 +62,12 @@ export default function CourseCard({ image, category, duration, title, descripti
                 <p className="mt-3 text-muted-foreground text-sm">{description}</p>
 
                 <div className="flex justify-between items-center mt-6">
-                    <button className="bg-primary px-4 py-2 rounded-full font-medium text-white text-sm">
+                    <Link
+                        href="/subject/22"
+                        className="bg-primary px-4 py-2 rounded-full font-medium text-white text-sm"
+                    >
                         Watch Lecture
-                    </button>
+                    </Link>
                     <div className="font-medium text-green-500 text-sm">{progress ?? '0% Completed'}</div>
                 </div>
             </div>

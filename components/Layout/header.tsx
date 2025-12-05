@@ -74,7 +74,7 @@ const Header: React.FC = () => {
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Image
-                                src="https://www.rophim.li/images/avatars/pack1/14.jpg"
+                                src="https://www.rophim.me/images/avatars/pack1/14.jpg"
                                 alt="Movie App Logo"
                                 width={40}
                                 height={40}

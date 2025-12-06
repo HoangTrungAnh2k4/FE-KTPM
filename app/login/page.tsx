@@ -32,14 +32,13 @@ export default function LoginPage() {
         setLoading(true);
         try {
             const res = await loginApi(username, password);
-            console.log(res);
 
             if (res.status === 200) {
-                router.push('/');
                 localStorage.setItem('access_token', res.data.accessToken);
                 localStorage.setItem('refresh_token', res.data.refreshToken);
                 document.cookie = `access_token=${res.data.accessToken}; path=/;`;
                 document.cookie = `refresh_token=${res.data.refreshToken}; path=/;`;
+                router.push('/');
             }
         } catch (err: any) {
             setError(err.response?.data?.message || 'Đăng nhập thất bại. Vui lòng thử lại.');

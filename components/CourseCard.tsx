@@ -2,6 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 type Props = {
+    id: number;
     image: string;
     category: string;
     duration: string;
@@ -10,7 +11,7 @@ type Props = {
     progress?: string;
 };
 
-export default function CourseCard({ image, category, duration, title, description, progress }: Props) {
+export default function CourseCard({ id, image, category, duration, title, description, progress }: Props) {
     return (
         <div className="bg-card shadow-xl p-4 rounded-2xl">
             <div className="bg-white rounded-xl overflow-hidden">
@@ -63,7 +64,7 @@ export default function CourseCard({ image, category, duration, title, descripti
 
                 <div className="flex justify-between items-center mt-6">
                     <Link
-                        href="/subject/22"
+                        href={`/subject/${id}`}
                         className="bg-primary px-4 py-2 rounded-full font-medium text-white text-sm"
                     >
                         Watch Lecture

@@ -52,10 +52,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                     {children}
                 </div>
             </SidebarProvider>
-            // <div className="flex min-h-screen">
-            //     <AdminSidebar />
-            //     <div className="flex-1 bg-[#f5f5f5] ml-64">{children}</div>
-            // </div>
         );
     }
 

@@ -6,12 +6,10 @@ import {
   type AdminUser,
   type UserRole,
   viewUsers,
-  createUserAccount,
-  toggleUserStatus,
-  resetUserPassword,
   assignRole,
   revokeRole,
 } from '@/lib/adminUsers';
+import { AdminUsersAPI } from '@/lib/api';
 
 // Only allow toggling Instructor role via combobox; default role is Student
 const togglableRole: UserRole = 'Instructor';
@@ -34,12 +32,22 @@ export default function AdminUsersPage() {
     reload();
   }, [roleFilter]);
 
-  const onCreate = () => {
+  const onCreate = async () => {
     if (!name.trim() || !email.trim()) {
       alert('Please input name and email');
       return;
     }
-    createUserAccount({ name: name.trim(), email: email.trim(), roles });
+    try {
+      await AdminUsersAPI.createUser({
+        fullName: name.trim(),
+        email: email.trim(),
+        password: 'Password123', // default temp password
+        roles,
+      } as any);
+    } catch (e: any) {
+      alert(e?.message || 'Create user failed');
+      return;
+    }
     setShowCreate(false);
     setName('');
     setEmail('');
@@ -47,15 +55,17 @@ export default function AdminUsersPage() {
     reload();
   };
 
-  const onToggleStatus = (id: number) => {
-    toggleUserStatus(id);
-    reload();
+  const onToggleStatus = async (id: number) => {
+    try {
+      await AdminUsersAPI.toggleStatus(id);
+      reload();
+    } catch (e: any) {
+      alert(e?.message || 'Toggle status failed');
+    }
   };
 
   const onResetPassword = (id: number) => {
-    const res = resetUserPassword(id);
-    setLastTempPassword(res?.tempPassword ?? null);
-    if (res) alert(`Temporary password for user ${id}: ${res.tempPassword}`);
+    alert('Reset password not implemented against backend yet.');
   };
 
   const onAssignRole = (id: number, role: UserRole) => {

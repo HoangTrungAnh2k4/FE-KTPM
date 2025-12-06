@@ -31,7 +31,7 @@ export default function AdminCourseCard({
     onViewDetail,
 }: Props) {
     return (
-        <div className="relative bg-white shadow-md hover:shadow-lg p-4 rounded-xl transition-shadow">
+        <div className="relative bg-white shadow-md hover:shadow-lg p-4 rounded-xl transition-shadow cursor-pointer" onClick={() => onViewDetail(id)}>
             {/* Course Image */}
             <div className="rounded-lg overflow-hidden">
                 <Image src={image} alt={title} width={400} height={240} className="w-full h-48 object-cover" />
@@ -110,12 +110,6 @@ export default function AdminCourseCard({
                                 </button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="bg-white shadow-lg border rounded-lg w-48">
-                                <DropdownMenuItem
-                                    onClick={() => onViewDetail(id)}
-                                    className="hover:bg-gray-100 px-4 py-2 rounded cursor-pointer"
-                                >
-                                    View Detail
-                                </DropdownMenuItem>
                                 <DropdownMenuItem
                                     onClick={() => onEdit(id)}
                                     className="hover:bg-gray-100 px-4 py-2 rounded cursor-pointer"

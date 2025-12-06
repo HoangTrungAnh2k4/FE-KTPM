@@ -1,59 +1,31 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import AdminCourseCard from '@/components/AdminCourseCard';
 import Link from 'next/link';
 // Revert to native selects (removed custom DropdownMenu)
 import { useRouter } from 'next/navigation';
+import SubjectFilter from '@/components/SubjectFilter';
+import { AdminSubjectsAPI, type Subject } from '@/lib/api';
 
-const sampleCourses = [
-    {
-        id: 1,
-        image: 'https://picsum.photos/seed/1/800/600',
-        category: 'Design',
-        duration: '3 Month',
-        title: 'AWS Certified solutions Architect',
-        description: 'Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor',
-        price: 23.0,
-        originalPrice: 33.0,
-        assign: 'Lina',
-    },
-    {
-        id: 2,
-        image: 'https://picsum.photos/seed/2/800/600',
-        category: 'Design',
-        duration: '3 Month',
-        title: 'AWS Certified solutions Architect',
-        description: 'Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor',
-        price: 23.0,
-        originalPrice: 33.0,
-        assign: 'Alex',
-    },
-    {
-        id: 3,
-        image: 'https://picsum.photos/seed/3/800/600',
-        category: 'Design',
-        duration: '3 Month',
-        title: 'AWS Certified solutions Architect',
-        description: 'Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor',
-        price: 23.0,
-        originalPrice: 33.0,
-        assign: 'Kim',
-    },
-    {
-        id: 4,
-        image: 'https://picsum.photos/seed/4/800/600',
-        category: 'Design',
-        duration: '3 Month',
-        title: 'AWS Certified solutions Architect',
-        description: 'Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor',
-        price: 23.0,
-        originalPrice: 11.0,
-        assign: 'Sam',
-    },
-];
+// Map backend Subject to UI card fields
+const toCard = (s: Subject) => ({
+  id: s.id,
+  image: `https://picsum.photos/seed/${s.id}/800/600`,
+  category: s.level || 'General',
+  duration: '—',
+  title: `${s.code} - ${s.name}`,
+  description: s.description || '',
+  price: 0,
+  originalPrice: 0,
+  assign: '',
+});
 
 export default function AdminSubjectsPage() {
-    const [courses, setCourses] = useState(sampleCourses);
+    const [courses, setCourses] = useState<Array<ReturnType<typeof toCard>>>([]);
+    const [loading, setLoading] = useState<boolean>(true);
+    const [error, setError] = useState<string | null>(null);
+    const [page, setPage] = useState<number>(0);
+    const [size, setSize] = useState<number>(12);
     const [showCreate, setShowCreate] = useState(false);
     const [showEdit, setShowEdit] = useState<null | number>(null);
     const router = useRouter();
@@ -79,9 +51,32 @@ export default function AdminSubjectsPage() {
         setAssign('');
     };
 
-    const handleDelete = (id: number) => {
-        if (confirm('Bạn có chắc chắn muốn xóa môn học này?')) {
-            setCourses(courses.filter((course) => course.id !== id));
+    const loadSubjects = async () => {
+        try {
+            setLoading(true);
+            const res = await AdminSubjectsAPI.list(page, size);
+            const items = (res?.data || []).map(toCard);
+            setCourses(items);
+            setError(null);
+        } catch (e: any) {
+            setError(e?.message || 'Không tải được danh sách môn học');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadSubjects();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [page, size]);
+
+    const handleDelete = async (id: number) => {
+        if (!confirm('Bạn có chắc chắn muốn xóa môn học này?')) return;
+        try {
+            await AdminSubjectsAPI.remove(id);
+            await loadSubjects();
+        } catch (e: any) {
+            alert(e?.message || 'Xóa môn học thất bại');
         }
     };
 
@@ -103,44 +98,39 @@ export default function AdminSubjectsPage() {
         router.push(`/admin/subjects/${id}`);
     };
 
-    const handleCreate = () => {
+    const handleCreate = async () => {
         if (!title.trim()) return alert('Vui lòng nhập Title');
-        const newCourse = {
-            id: Math.max(0, ...courses.map((c) => c.id)) + 1,
-            image: `https://picsum.photos/seed/${Math.floor(Math.random() * 1000)}/800/600`,
-            category: category || 'General',
-            duration: duration || 'Day',
-            title: title,
-            description: description || 'No description',
-            price: parseFloat(price) || 0,
-            originalPrice: parseFloat(originalPrice) || 0,
-            assign: assign || '',
-        };
-        setCourses([newCourse, ...courses]);
-        setShowCreate(false);
-        resetForm();
+        try {
+            // Map form fields to backend Subject
+            await AdminSubjectsAPI.create({
+                code: title.slice(0, 10).replace(/\s+/g, '').toUpperCase() || 'SUBJ',
+                name: title,
+                level: category || 'UNDERGRADUATE',
+                description: description || '',
+                status: 'ACTIVE',
+            } as any);
+            setShowCreate(false);
+            resetForm();
+            await loadSubjects();
+        } catch (e: any) {
+            alert(e?.message || 'Tạo môn học thất bại');
+        }
     };
 
-    const handleUpdate = () => {
+    const handleUpdate = async () => {
         if (showEdit == null) return;
-        setCourses((prev) =>
-            prev.map((c) =>
-                c.id === showEdit
-                    ? {
-                          ...c,
-                          title,
-                          description,
-                          category,
-                          duration,
-                          price: parseFloat(price) || c.price,
-                          originalPrice: parseFloat(originalPrice) || c.originalPrice,
-                          assign,
-                      }
-                    : c
-            )
-        );
-        setShowEdit(null);
-        resetForm();
+        try {
+            await AdminSubjectsAPI.update(showEdit, {
+                name: title,
+                level: category,
+                description,
+            });
+            setShowEdit(null);
+            resetForm();
+            await loadSubjects();
+        } catch (e: any) {
+            alert(e?.message || 'Cập nhật môn học thất bại');
+        }
     };
 
     return (
@@ -159,30 +149,37 @@ export default function AdminSubjectsPage() {
                         >
                             Create Subject
                         </button>
-                        <Link href="#" className="font-medium text-[#4ECDC4] hover:underline text-sm">
-                            See all
-                        </Link>
                     </div>
                 </div>
 
-                <div className="gap-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-                    {courses.map((course) => (
-                        <AdminCourseCard
-                            key={course.id}
-                            id={course.id}
-                            image={course.image}
-                            category={course.category}
-                            duration={course.duration}
-                            title={course.title}
-                            description={course.description}
-                            price={course.price}
-                            originalPrice={course.originalPrice}
-                            onDelete={handleDelete}
-                            onEdit={handleEdit}
-                            onViewDetail={handleViewDetail}
-                            assign={course.assign}
-                        />
-                    ))}
+                <SubjectFilter total={courses.length} />
+
+                <div className="gap-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 mt-6">
+                    {loading ? (
+                        <div className="col-span-full text-sm text-gray-500">Đang tải...</div>
+                    ) : error ? (
+                        <div className="col-span-full text-sm text-red-600">{error}</div>
+                    ) : courses.length === 0 ? (
+                        <div className="col-span-full text-sm text-gray-500">Không có môn học</div>
+                    ) : (
+                        courses.map((course) => (
+                            <AdminCourseCard
+                                key={course.id}
+                                id={course.id}
+                                image={course.image}
+                                category={course.category}
+                                duration={course.duration}
+                                title={course.title}
+                                description={course.description}
+                                price={course.price}
+                                originalPrice={course.originalPrice}
+                                onDelete={handleDelete}
+                                onEdit={handleEdit}
+                                onViewDetail={handleViewDetail}
+                                assign={course.assign}
+                            />
+                        ))
+                    )}
                 </div>
             </div>
 
@@ -196,23 +193,31 @@ export default function AdminSubjectsPage() {
                 </div>
 
                 <div className="gap-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-                    {courses.map((course) => (
-                        <AdminCourseCard
-                            key={`section2-${course.id}`}
-                            id={course.id}
-                            image={course.image}
-                            category={course.category}
-                            duration={course.duration}
-                            title={course.title}
-                            description={course.description}
-                            price={course.price}
-                            originalPrice={course.originalPrice}
-                            onDelete={handleDelete}
-                            onEdit={handleEdit}
-                            onViewDetail={handleViewDetail}
-                            assign={course.assign}
-                        />
-                    ))}
+                    {loading ? (
+                        <div className="col-span-full text-sm text-gray-500">Đang tải...</div>
+                    ) : error ? (
+                        <div className="col-span-full text-sm text-red-600">{error}</div>
+                    ) : courses.length === 0 ? (
+                        <div className="col-span-full text-sm text-gray-500">Không có môn học</div>
+                    ) : (
+                        courses.map((course) => (
+                            <AdminCourseCard
+                                key={`section2-${course.id}`}
+                                id={course.id}
+                                image={course.image}
+                                category={course.category}
+                                duration={course.duration}
+                                title={course.title}
+                                description={course.description}
+                                price={course.price}
+                                originalPrice={course.originalPrice}
+                                onDelete={handleDelete}
+                                onEdit={handleEdit}
+                                onViewDetail={handleViewDetail}
+                                assign={course.assign}
+                            />
+                        ))
+                    )}
                 </div>
             </div>
 

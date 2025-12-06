@@ -1,42 +1,50 @@
 'use client';
 import { useParams, useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { AdminSubjectsAPI, type Topic, type Lecture } from '@/lib/api';
 
-// Simple in-memory demo data. In real app, fetch by id.
-const initialTopics = [
-  {
-    id: 1,
-    name: 'Lessons With Video Content',
-    lectures: [
-      { id: 1, title: 'Lesson with video content', duration: '12:30', preview: true },
-      { id: 2, title: 'Lesson with video content', duration: '10:05', preview: false },
-      { id: 3, title: 'Lesson with video content', duration: '2:25', preview: false },
-    ],
-  },
-  {
-    id: 2,
-    name: 'Lessons With Video Content',
-    lectures: [
-      { id: 1, title: 'Lecture name', duration: '06:42', preview: false },
-      { id: 2, title: 'Lecture name', duration: '05:20', preview: false },
-    ],
-  },
-];
+type UILecture = { id: number; title: string; duration: string; preview?: boolean; videoUrl?: string };
+type UITopic = { id: number; name: string; lectures: UILecture[] };
 
 export default function AdminCourseDetailPage() {
   const params = useParams();
   const router = useRouter();
   const courseId = useMemo(() => (params?.id ? String(params.id) : ''), [params]);
 
-  const [topics, setTopics] = useState(initialTopics);
+  const [topics, setTopics] = useState<UITopic[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [editingTopicId, setEditingTopicId] = useState<number | null>(null);
 
   // Form state
   const [topicName, setTopicName] = useState('');
-  const [lectures, setLectures] = useState<Array<{ id: number; title: string; duration: string; preview?: boolean; videoUrl?: string }>>([
+  const [lectures, setLectures] = useState<Array<UILecture>>([
     { id: 1, title: '', duration: '', preview: false, videoUrl: '' },
   ]);
+
+  const loadTopics = async () => {
+    if (!courseId) return;
+    try {
+      const res = await AdminSubjectsAPI.listTopics(Number(courseId));
+      const items = (res?.data || []).map((t: Topic) => ({ id: t.id, name: t.title || t['name'] || 'Topic', lectures: [] }));
+      setTopics(items);
+    } catch (e) {
+      // ignore for now
+    }
+  };
+  const loadLecturesForTopic = async (topicId: number) => {
+    try {
+      const res = await AdminSubjectsAPI.listLectures(topicId);
+      const lectures = (res?.data || []).map((l: Lecture) => ({ id: l.id, title: l.title, duration: l.duration || '', preview: !!l.preview, videoUrl: l.videoUrl || '' }));
+      setTopics((prev) => prev.map((t) => (t.id === topicId ? { ...t, lectures } : t)));
+    } catch (e) {
+      // silently ignore if endpoint not available
+    }
+  };
+
+  useEffect(() => {
+    loadTopics();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [courseId]);
 
   const resetForm = () => {
     setTopicName('');
@@ -69,25 +77,50 @@ export default function AdminCourseDetailPage() {
     setLectures((prev) => prev.filter((l) => l.id !== id));
   };
 
-  const handleCreateOrUpdate = () => {
+  const addLectureForTopic = async (topicId: number) => {
+    const title = prompt('Lecture title');
+    if (!title) return;
+    try {
+      await AdminSubjectsAPI.addLecture(topicId, { title, duration: '00:00', preview: false, videoUrl: '' });
+      await loadLecturesForTopic(topicId);
+    } catch (e: any) {
+      alert(e?.message || 'Add lecture failed');
+    }
+  };
+
+  const deleteLectureForTopic = async (topicId: number, lectureId: number) => {
+    if (!confirm('Delete this lecture?')) return;
+    try {
+      await AdminSubjectsAPI.deleteLecture(lectureId);
+      await loadLecturesForTopic(topicId);
+    } catch (e: any) {
+      alert(e?.message || 'Delete lecture failed');
+    }
+  };
+
+  const handleCreateOrUpdate = async () => {
     if (!topicName.trim()) return alert('Please enter topic name');
 
-    const cleaned = lectures.filter((l) => l.title.trim());
-    if (editingTopicId == null) {
-      const newTopic = {
-        id: Math.max(0, ...topics.map((t) => t.id)) + 1,
-        name: topicName.trim(),
-        lectures: cleaned.length ? cleaned : [{ id: 1, title: 'New lecture', duration: '00:00' }],
-      };
-      setTopics([newTopic, ...topics]);
-    } else {
-      setTopics((prev) =>
-        prev.map((t) =>
-          t.id === editingTopicId
-            ? { ...t, name: topicName.trim(), lectures: cleaned }
-            : t,
-        ),
-      );
+    try {
+      if (editingTopicId == null) {
+        await AdminSubjectsAPI.addTopic(Number(courseId), { title: topicName.trim(), description: '', orderIndex: topics.length + 1 });
+      } else {
+        await AdminSubjectsAPI.updateTopic(editingTopicId, { title: topicName.trim(), description: '' });
+        // Sync lectures changes to backend (create/update/delete by diff)
+        // Simple approach: upsert current rows (with title) and ignore delete if no endpoint provided
+        const current = lectures.filter((l) => l.title.trim());
+        for (const l of current) {
+          if (!l.id || l.id < 0) {
+            await AdminSubjectsAPI.addLecture(editingTopicId, { title: l.title, duration: l.duration, preview: l.preview, videoUrl: l.videoUrl });
+          } else {
+            await AdminSubjectsAPI.updateLecture(l.id, { title: l.title, duration: l.duration, preview: l.preview, videoUrl: l.videoUrl });
+          }
+        }
+      }
+      await loadTopics();
+    } catch (e: any) {
+      alert(e?.message || 'Save topic failed');
+      return;
     }
 
     setShowCreate(false);
@@ -95,9 +128,14 @@ export default function AdminCourseDetailPage() {
     resetForm();
   };
 
-  const deleteTopic = (id: number) => {
+  const deleteTopic = async (id: number) => {
     if (!confirm('Xóa topic này?')) return;
-    setTopics((prev) => prev.filter((t) => t.id !== id));
+    try {
+      await AdminSubjectsAPI.deleteTopic(id);
+      await loadTopics();
+    } catch (e: any) {
+      alert(e?.message || 'Delete topic failed');
+    }
   };
 
   return (
@@ -114,7 +152,7 @@ export default function AdminCourseDetailPage() {
         {/* Left: Topics list */}
         <div className="lg:col-span-2 space-y-3">
           {topics.map((t) => (
-            <details key={t.id} className="bg-white shadow-sm rounded-md">
+            <details key={t.id} className="bg-white shadow-sm rounded-md" onToggle={(e) => { const open = (e.target as HTMLDetailsElement).open; if (open) loadLecturesForTopic(t.id); }}>
               <summary className="flex items-center justify-between px-4 py-3 cursor-pointer select-none">
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-sm">{t.name}</span>
@@ -125,11 +163,17 @@ export default function AdminCourseDetailPage() {
                   <button onClick={(e) => { e.preventDefault(); deleteTopic(t.id); }} className="text-xs border px-2 py-1 rounded">Delete</button>
                 </div>
               </summary>
+              <div className="px-6 pb-2">
+                <button onClick={() => addLectureForTopic(t.id)} className="text-xs border px-2 py-1 rounded">+ Add lecture</button>
+              </div>
               <ul className="px-6 pb-4 space-y-2">
                 {t.lectures.map((l) => (
                   <li key={l.id} className="flex items-center justify-between text-sm">
                     <span className="text-gray-700">{l.title}</span>
-                    <span className="text-gray-500 text-xs">{l.duration}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500 text-xs">{l.duration}</span>
+                      <button onClick={() => deleteLectureForTopic(t.id, l.id)} className="text-xs border px-2 py-1 rounded">Delete</button>
+                    </div>
                   </li>
                 ))}
               </ul>

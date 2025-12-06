@@ -17,14 +17,16 @@ export async function middleware(req: NextRequest) {
 
             if (response.ok) {
                 const user = await response.json();
-                // Tùy backend trả về mà điều chỉnh chỗ này
                 const userData = user.data ?? user;
-                const role = userData.role as string | undefined;
 
-                // Nếu đang ở /login hoặc /register → redirect về home, kèm cookie user
+                // ⚡ Convert role: ["ADMIN"] -> "ADMIN"
+                const rawRole = userData.roles;
+                const role = Array.isArray(rawRole) ? rawRole[0] : rawRole;
+
+                // Nếu đang ở /login hoặc /register → redirect về home + set cookie
                 if (pathname === '/login' || pathname === '/register') {
                     const res = NextResponse.redirect(new URL('/', req.url));
-                    res.cookies.set('user_profile', JSON.stringify(userData), {
+                    res.cookies.set('user_profile', JSON.stringify({ ...userData, role }), {
                         httpOnly: false,
                         path: '/',
                     });
@@ -32,25 +34,26 @@ export async function middleware(req: NextRequest) {
                 }
 
                 // -------- PHÂN QUYỀN THEO ROLE --------
-                // Chỉ ADMIN được vào /admin/*
+
+                // /admin → chỉ ADMIN
                 if (pathname.startsWith('/admin')) {
                     if (role !== 'ADMIN') {
-                        // Không đủ quyền → đá về trang chủ (hoặc /403 nếu bạn có)
                         return NextResponse.redirect(new URL('/', req.url));
                     }
                 }
 
-                // ADMIN và INSTRUCTOR được vào /instructor/*
+                // /instructor → ADMIN hoặc INSTRUCTOR
                 if (pathname.startsWith('/instructor')) {
                     if (role !== 'ADMIN' && role !== 'INSTRUCTOR') {
                         return NextResponse.redirect(new URL('/', req.url));
                     }
                 }
+
                 // --------------------------------------
 
-                // Các route khác → cho đi tiếp, kèm cookie user
+                // Cho đi tiếp + set cookie user_profile
                 const res = NextResponse.next();
-                res.cookies.set('user_profile', JSON.stringify(userData), {
+                res.cookies.set('user_profile', JSON.stringify({ ...userData, role }), {
                     httpOnly: false,
                     path: '/',
                 });
@@ -58,7 +61,7 @@ export async function middleware(req: NextRequest) {
             }
         }
 
-        // Không có token hoặc token sai → chặn các route cần auth
+        // Không có token → chặn các route cần auth
         if (
             pathname === '/' ||
             pathname.startsWith('/subject') ||
@@ -68,10 +71,9 @@ export async function middleware(req: NextRequest) {
             return NextResponse.redirect(new URL('/login', req.url));
         }
 
-        // Các route không cần auth (nếu có) thì cho qua
         return NextResponse.next();
     } catch (error) {
-        // Lỗi khi gọi API → coi như chưa login
+        // Lỗi API → coi như chưa login
         if (
             pathname === '/' ||
             pathname.startsWith('/subject') ||
@@ -84,7 +86,6 @@ export async function middleware(req: NextRequest) {
     }
 }
 
-// Middleware chỉ chạy trên các route này
 export const config = {
     matcher: ['/', '/admin/:path*', '/instructor/:path*', '/subject/:path*'],
 };

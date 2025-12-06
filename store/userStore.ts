@@ -1,11 +1,12 @@
 // store/userStore.ts
 import { create } from 'zustand';
 
-type User = {
+export type User = {
     id: string;
     email: string;
     name: string;
     role: 'ADMIN' | 'STUDENT' | 'INSTRUCTOR';
+    avatar: string;
 };
 
 type State = {

@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { FaHome, FaBook, FaUsers, FaChalkboardTeacher, FaCog, FaChartBar } from 'react-icons/fa';
+import { Sidebar } from '../UI/sidebar';
 
 export default function AdminSidebar() {
     const pathname = usePathname();

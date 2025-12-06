@@ -14,16 +14,16 @@ import {
     SidebarMenuItem,
 } from '../UI/sidebar';
 import { NavUser } from '../UI/nav-user';
-import Image from 'next/image';
+import { useUserStore } from '@/store/userStore';
 
 // Menu items.
 const items = [
     {
-        title: 'Subjects',
+        title: 'Manage Subjects',
         url: '/admin/subjects',
     },
     {
-        title: 'Users',
+        title: 'Manage Users',
         url: '/admin/users',
     },
 ];
@@ -39,6 +39,8 @@ const data = {
 export function AppSidebar() {
     const pathname = usePathname();
 
+    const { user } = useUserStore();
+
     return (
         <Sidebar>
             <SidebarContent>
@@ -53,7 +55,7 @@ export function AppSidebar() {
                                         <SidebarMenuButton
                                             asChild
                                             isActive={isActive}
-                                            className="data-[state=open]:bg-transparent focus:bg-transparent active:bg-transparent"
+                                            className="py-5 pl-4 font-semibold text-base"
                                         >
                                             <Link href={item.url}>
                                                 {/* <item.icon /> */}
@@ -67,9 +69,7 @@ export function AppSidebar() {
                     </SidebarGroupContent>
                 </SidebarGroup>
             </SidebarContent>
-            <SidebarFooter>
-                <NavUser user={data.user} />
-            </SidebarFooter>
+            <SidebarFooter>{<NavUser user={user} />}</SidebarFooter>
         </Sidebar>
     );
 }

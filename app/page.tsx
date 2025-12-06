@@ -2,22 +2,32 @@
 
 import { useUserStore } from '@/store/userStore';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function Home() {
-    const { user } = useUserStore();
+    const [checking, setChecking] = useState(true);
+
     const router = useRouter();
+    const { user } = useUserStore();
 
     useEffect(() => {
-        if (!user) return;
+        if (!user) {
+            setChecking(false);
+            return;
+        }
 
         if (user.role === 'ADMIN') {
-            router.push('/admin');
+            router.replace('/admin/subjects');
+            return;
         }
+
+        setChecking(false);
     }, [user, router]);
 
-    if (user?.role === 'ADMIN') {
-        return <></>;
+    if (checking) {
+        return null;
+        // hoặc:
+        // return <div className="flex justify-center items-center min-h-screen">Loading...</div>;
     }
 
     return (

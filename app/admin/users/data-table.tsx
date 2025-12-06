@@ -1,0 +1,143 @@
+'use client';
+
+import {
+    ColumnDef,
+    SortingState,
+    flexRender,
+    getCoreRowModel,
+    getSortedRowModel,
+    getPaginationRowModel,
+    useReactTable,
+} from '@tanstack/react-table';
+
+import {
+    Pagination,
+    PaginationContent,
+    PaginationEllipsis,
+    PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
+} from '@/components/UI/pagination';
+
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/UI/table';
+import { useState } from 'react';
+
+interface DataTableProps<TData, TValue> {
+    columns: ColumnDef<TData, TValue>[];
+    data: TData[];
+    // controlled pagination
+    currentPage?: number;
+    totalPages?: number;
+    onPageChange?: (page: number) => void;
+}
+
+export function DataTable<TData, TValue>({
+    columns,
+    data,
+    currentPage,
+    totalPages,
+    onPageChange,
+}: DataTableProps<TData, TValue>) {
+    const [sorting, setSorting] = useState<SortingState>([]);
+    const table = useReactTable({
+        data,
+        columns,
+        getCoreRowModel: getCoreRowModel(),
+        onSortingChange: setSorting,
+        getSortedRowModel: getSortedRowModel(),
+        getPaginationRowModel: getPaginationRowModel(),
+        state: {
+            sorting,
+        },
+    });
+
+    return (
+        <div className="pb-6">
+            <div className="border rounded-md overflow-hidden">
+                <Table>
+                    <TableHeader>
+                        {table.getHeaderGroups().map((headerGroup) => (
+                            <TableRow key={headerGroup.id}>
+                                {headerGroup.headers.map((header) => {
+                                    return (
+                                        <TableHead key={header.id}>
+                                            {header.isPlaceholder
+                                                ? null
+                                                : flexRender(header.column.columnDef.header, header.getContext())}
+                                        </TableHead>
+                                    );
+                                })}
+                            </TableRow>
+                        ))}
+                    </TableHeader>
+                    <TableBody>
+                        {table.getRowModel().rows?.length ? (
+                            table.getRowModel().rows.map((row) => (
+                                <TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
+                                    {row.getVisibleCells().map((cell) => (
+                                        <TableCell key={cell.id}>
+                                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                        </TableCell>
+                                    ))}
+                                </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                                <TableCell colSpan={columns.length} className="h-24 text-center">
+                                    No results.
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </div>
+            <Pagination className="mt-6">
+                <PaginationContent>
+                    <PaginationItem>
+                        <PaginationPrevious
+                            href="#"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                const p = currentPage as number;
+                                const cb = onPageChange;
+                                if (p > 1 && cb) cb(p - 1);
+                            }}
+                        />
+                    </PaginationItem>
+                    {Array.from({ length: Math.max(1, totalPages || 1) }, (_, i) => {
+                        const p = i + 1;
+                        const isActive = p === currentPage;
+                        return (
+                            <PaginationItem key={p}>
+                                <PaginationLink
+                                    href="#"
+                                    isActive={isActive}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        const cb = onPageChange;
+                                        if (cb) cb(p);
+                                    }}
+                                >
+                                    {p}
+                                </PaginationLink>
+                            </PaginationItem>
+                        );
+                    })}
+                    <PaginationItem>
+                        <PaginationNext
+                            href="#"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                const p = currentPage as number;
+                                const tp = totalPages as number;
+                                const cb = onPageChange;
+                                if (p < tp && cb) cb(p + 1);
+                            }}
+                        />
+                    </PaginationItem>
+                </PaginationContent>
+            </Pagination>
+        </div>
+    );
+}

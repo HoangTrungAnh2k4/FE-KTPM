@@ -5,6 +5,8 @@ const API_BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost
 
 export async function middleware(req: NextRequest) {
     const token = req.cookies.get('access_token')?.value;
+   const { pathname } = req.nextUrl;
+
 
     try {
         if (token) {
@@ -26,6 +28,20 @@ export async function middleware(req: NextRequest) {
                     });
                     return res;
                 }
+              
+              // Admin routes protection
+    if (pathname.startsWith('/admin')) {
+        if (!user || user.role !== 'Administrator') {
+            return NextResponse.redirect(new URL('/login', request.url));
+        }
+    }
+
+    // Instructor routes protection
+    if (pathname.startsWith('/instructor')) {
+        if (!user || (user.role !== 'Instructor' && user.role !== 'Administrator')) {
+            return NextResponse.redirect(new URL('/login', request.url));
+        }
+    }
 
                 // Các route khác → cho đi tiếp, kèm cookie user
                 const res = NextResponse.next();
@@ -53,5 +69,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-    matcher: ['/', '/subject/:path*', '/login', '/register'],
+  matcher: ['/admin/:path*', '/instructor/:path*','/subject/:path*',],
 };

@@ -11,8 +11,11 @@ export default function LoginPage() {
     const router = useRouter();
     const { setUser } = useUserStore();
 
+    // Single login mode for this demo
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    // Role is inferred from credentials; no manual selection
+    const [remember, setRemember] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
@@ -98,6 +101,22 @@ export default function LoginPage() {
                                 </div>
                             </div>
 
+                            {/* Role selection removed; role inferred from credentials */}
+
+                            <div className="flex justify-between items-center text-sm">
+                                <label className="flex items-center gap-2">
+                                    <input
+                                        type="checkbox"
+                                        checked={remember}
+                                        onChange={(e) => setRemember(e.target.checked)}
+                                    />
+                                    <span className="text-neutral-600">Remember me</span>
+                                </label>
+
+                                <button type="button" className="text-neutral-500 hover:underline">
+                                    Forgot Password ?
+                                </button>
+                            </div>
                             {error && <p className="text-red-500 text-sm">{error}</p>}
 
                             <div className="pt-4">

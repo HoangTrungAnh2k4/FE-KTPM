@@ -8,7 +8,7 @@ import AdminSidebar from './adminSidebar';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
-    const { user } = useUserStore();
+    const { user, setUser } = useUserStore();
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
@@ -26,14 +26,16 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         try {
             const value = decodeURIComponent(cookie.split('=')[1]);
             const user = JSON.parse(value);
+            console.log(user);
+
             setUser(user);
         } catch (err) {
             console.error('Failed to parse user_profile cookie', err);
         }
-    }, [setUser]);
+    }, [pathname, setUser]);
 
     if (isNoLayout) return <>{children}</>;
-    
+
     // Prevent hydration mismatch by not rendering until mounted
     if (!mounted) {
         return <div className="min-h-screen">{children}</div>;
@@ -43,9 +45,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         return (
             <div className="flex min-h-screen">
                 <AdminSidebar />
-                <div className="flex-1 ml-64 bg-[#f5f5f5]">
-                    {children}
-                </div>
+                <div className="flex-1 bg-[#f5f5f5] ml-64">{children}</div>
             </div>
         );
     }

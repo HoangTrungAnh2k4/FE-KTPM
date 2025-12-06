@@ -35,15 +35,17 @@ const Header: React.FC = () => {
         localStorage.removeItem('refresh_token');
         document.cookie = 'access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
         document.cookie = 'refresh_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        document.cookie = 'user_profile=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
         setUser(null);
         window.location.href = '/login';
-    }
+    };
 
     useEffect(() => {
         setMounted(true);
     }, []);
 
-  
+    console.log(user);
+
     return (
         <header className="z-100 fixed flex justify-between items-center bg-primary px-20 py-6 w-full h-[70px] text-white transition-all header">
             <Link href={'/'} className="flex justify-center items-center gap-2 logo">

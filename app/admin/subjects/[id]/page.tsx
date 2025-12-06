@@ -1,46 +1,44 @@
 'use client';
 import { useParams, useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  getSubjectByIdApi,
+  getSubjectTopicsApi,
+  addTopicApi,
+  updateTopicApi,
+  deleteTopicApi,
+} from '@/api/SubjectApi';
 
-// Simple in-memory demo data. In real app, fetch by id.
-const initialTopics = [
-  {
-    id: 1,
-    name: 'Lessons With Video Content',
-    lectures: [
-      { id: 1, title: 'Lesson with video content', duration: '12:30', preview: true },
-      { id: 2, title: 'Lesson with video content', duration: '10:05', preview: false },
-      { id: 3, title: 'Lesson with video content', duration: '2:25', preview: false },
-    ],
-  },
-  {
-    id: 2,
-    name: 'Lessons With Video Content',
-    lectures: [
-      { id: 1, title: 'Lecture name', duration: '06:42', preview: false },
-      { id: 2, title: 'Lecture name', duration: '05:20', preview: false },
-    ],
-  },
-];
+type Topic = {
+  id: number;
+  title: string;
+  description?: string;
+  orderIndex?: number;
+};
 
 export default function AdminCourseDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const courseId = useMemo(() => (params?.id ? String(params.id) : ''), [params]);
+  const subjectId = useMemo(() => (params?.id ? Number(params.id) : 0), [params]);
 
-  const [topics, setTopics] = useState(initialTopics);
+  const [subjectName, setSubjectName] = useState<string>('');
+  const [topics, setTopics] = useState<Topic[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // Delete confirmation modal state
+  const [deleteTopicId, setDeleteTopicId] = useState<number | null>(null);
+  const [deleteReason, setDeleteReason] = useState('');
+
   const [showCreate, setShowCreate] = useState(false);
   const [editingTopicId, setEditingTopicId] = useState<number | null>(null);
-
-  // Form state
-  const [topicName, setTopicName] = useState('');
-  const [lectures, setLectures] = useState<Array<{ id: number; title: string; duration: string; preview?: boolean; videoUrl?: string }>>([
-    { id: 1, title: '', duration: '', preview: false, videoUrl: '' },
-  ]);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [orderIndex, setOrderIndex] = useState<number | ''>('');
 
   const resetForm = () => {
-    setTopicName('');
-    setLectures([{ id: 1, title: '', duration: '', preview: false }]);
+    setTitle('');
+    setDescription('');
+    setOrderIndex('');
   };
 
   const openCreate = () => {
@@ -53,62 +51,109 @@ export default function AdminCourseDetailPage() {
     const t = topics.find((x) => x.id === id);
     if (!t) return;
     setEditingTopicId(id);
-    setTopicName(t.name);
-    setLectures(t.lectures.map((l) => ({ ...l })));
+    setTitle(t.title || '');
+    setDescription(t.description || '');
+    setOrderIndex(typeof t.orderIndex === 'number' ? t.orderIndex : '');
     setShowCreate(true);
   };
 
-  const addLectureRow = () => {
-    setLectures((prev) => [
-      ...prev,
-      { id: Math.max(0, ...prev.map((l) => l.id)) + 1, title: '', duration: '', preview: false, videoUrl: '' },
-    ]);
-  };
+  const fetchData = async () => {
+    if (!subjectId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const subjectRes = await getSubjectByIdApi(subjectId);
+      const subjectPayload = subjectRes && typeof subjectRes === 'object' && 'data' in (subjectRes as any)
+        ? (subjectRes as any).data
+        : subjectRes;
+      setSubjectName(subjectPayload?.name || subjectPayload?.data?.name || '');
 
-  const removeLectureRow = (id: number) => {
-    setLectures((prev) => prev.filter((l) => l.id !== id));
-  };
-
-  const handleCreateOrUpdate = () => {
-    if (!topicName.trim()) return alert('Please enter topic name');
-
-    const cleaned = lectures.filter((l) => l.title.trim());
-    if (editingTopicId == null) {
-      const newTopic = {
-        id: Math.max(0, ...topics.map((t) => t.id)) + 1,
-        name: topicName.trim(),
-        lectures: cleaned.length ? cleaned : [{ id: 1, title: 'New lecture', duration: '00:00' }],
-      };
-      setTopics([newTopic, ...topics]);
-    } else {
-      setTopics((prev) =>
-        prev.map((t) =>
-          t.id === editingTopicId
-            ? { ...t, name: topicName.trim(), lectures: cleaned }
-            : t,
-        ),
-      );
+      const topicsRes = await getSubjectTopicsApi(subjectId);
+      const topicsPayload = topicsRes && typeof topicsRes === 'object' && 'data' in (topicsRes as any)
+        ? (topicsRes as any).data
+        : topicsRes;
+      const list: Topic[] = Array.isArray(topicsPayload?.items)
+        ? topicsPayload.items
+        : Array.isArray(topicsPayload)
+        ? topicsPayload
+        : [];
+      setTopics(list);
+    } catch (e: any) {
+      setError(e?.message || 'Không thể tải dữ liệu môn học');
+    } finally {
+      setLoading(false);
     }
-
-    setShowCreate(false);
-    setEditingTopicId(null);
-    resetForm();
   };
 
-  const deleteTopic = (id: number) => {
-    if (!confirm('Xóa topic này?')) return;
-    setTopics((prev) => prev.filter((t) => t.id !== id));
+  useEffect(() => {
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subjectId]);
+
+  const handleCreateOrUpdate = async () => {
+    if (!title.trim()) return alert('Vui lòng nhập tiêu đề chủ đề');
+    try {
+      if (editingTopicId == null) {
+        const res = await addTopicApi(subjectId, {
+          title: title.trim(),
+          description: description.trim() || undefined,
+          orderIndex: typeof orderIndex === 'number' ? orderIndex : undefined,
+        });
+        const created: Topic = res?.data || res;
+        if (created?.id) setTopics((prev) => [created, ...prev]); else fetchData();
+      } else {
+        const res = await updateTopicApi(editingTopicId, {
+          title: title.trim(),
+          description: description.trim() || undefined,
+          orderIndex: typeof orderIndex === 'number' ? orderIndex : undefined,
+        });
+        const updated: Topic = res?.data || res;
+        setTopics((prev) => prev.map((t) => (t.id === editingTopicId ? { ...t, ...updated } : t)));
+      }
+      setShowCreate(false);
+      setEditingTopicId(null);
+      resetForm();
+    } catch (e: any) {
+      alert(e?.message || 'Lưu chủ đề thất bại');
+    }
+  };
+
+  const requestDeleteTopic = (id: number) => {
+    setDeleteTopicId(id);
+    setDeleteReason('');
+  };
+
+  const confirmDeleteTopic = async () => {
+    if (deleteTopicId == null) return;
+    try {
+      await deleteTopicApi(deleteTopicId);
+      setTopics((prev) => prev.filter((t) => t.id !== deleteTopicId));
+      setDeleteTopicId(null);
+      setDeleteReason('');
+    } catch (e: any) {
+      setError(e?.message || 'Xóa chủ đề thất bại');
+    }
   };
 
   return (
     <div className="px-12 py-8 min-h-screen">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="font-semibold text-2xl text-[#333]">Course #{courseId} - Topics</h1>
         <div className="flex items-center gap-3">
-          <button onClick={() => router.back()} className="border px-4 py-2 rounded-full text-sm">Back</button>
-          <button onClick={openCreate} className="bg-[#4ECDC4] text-white px-4 py-2 rounded-full text-sm">Create topic</button>
+        <button onClick={() => router.back()} className="border px-3 py-2 rounded-full text-sm flex items-center gap-2" aria-label="Go back">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline-block">
+            <path d="M19 12H5" />
+            <path d="M12 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <h1 className="font-semibold text-2xl text-[#333]">{ subjectName ? subjectName : ''}</h1>
         </div>
+          
+          <button onClick={openCreate} className="bg-[#4ECDC4] text-white px-4 py-2 rounded-full text-sm">Create topic</button>
+        
       </div>
+
+      {loading && <p>Đang tải...</p>}
+      {error && <p className="text-red-600">{error}</p>}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left: Topics list */}
@@ -117,43 +162,33 @@ export default function AdminCourseDetailPage() {
             <details key={t.id} className="bg-white shadow-sm rounded-md">
               <summary className="flex items-center justify-between px-4 py-3 cursor-pointer select-none">
                 <div className="flex items-center gap-2">
-                  <span className="font-medium text-sm">{t.name}</span>
-                  <span className="text-xs text-gray-500">{t.lectures.length} Lessons</span>
+                  <span className="font-medium text-sm">{t.title}</span>
+                  {typeof t.orderIndex === 'number' && (
+                    <span className="text-xs text-gray-500">Order #{t.orderIndex}</span>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={(e) => { e.preventDefault(); openEdit(t.id); }} className="text-xs border px-2 py-1 rounded">Edit</button>
-                  <button onClick={(e) => { e.preventDefault(); deleteTopic(t.id); }} className="text-xs border px-2 py-1 rounded">Delete</button>
+                  <button onClick={(e) => { e.preventDefault(); openEdit(t.id); }} className="text-xs border px-2 py-1 rounded-full">Edit</button>
+                  <button onClick={(e) => { e.preventDefault(); requestDeleteTopic(t.id); }} className="text-xs border px-2 py-1 rounded-full text-red-600">Delete</button>
                 </div>
               </summary>
-              <ul className="px-6 pb-4 space-y-2">
-                {t.lectures.map((l) => (
-                  <li key={l.id} className="flex items-center justify-between text-sm">
-                    <span className="text-gray-700">{l.title}</span>
-                    <span className="text-gray-500 text-xs">{l.duration}</span>
-                  </li>
-                ))}
-              </ul>
+              {t.description && (
+                <div className="px-6 pb-4 text-sm text-gray-700">
+                  {t.description}
+                </div>
+              )}
             </details>
           ))}
         </div>
 
-        {/* Right: Course info panel (placeholder like design) */}
+        {/* Right: Info panel */}
         <div className="space-y-4">
           <div className="bg-white rounded-lg overflow-hidden shadow">
-            <img src="https://picsum.photos/seed/999/640/360" alt="course" className="w-full h-40 object-cover" />
+            <img src={`https://picsum.photos/seed/${subjectId}/640/360`} alt="subject" className="w-full h-40 object-cover" />
           </div>
           <div className="bg-white p-4 rounded-lg shadow">
-            <h3 className="font-semibold mb-3">This Course included</h3>
-            <ul className="space-y-2 text-sm text-gray-600">
-              <li>Money Back Guarantee</li>
-              <li>Access on all devices</li>
-              <li>Certificate of completion</li>
-              <li>24 Modules</li>
-            </ul>
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow">
-            <h3 className="font-semibold mb-3">Training 5 or more people</h3>
-            <p className="text-sm text-gray-600">Group plans with team analytics and centralized billing.</p>
+            <h3 className="font-semibold mb-2">Subject info</h3>
+            <p className="text-sm text-gray-600">Use the left panel to manage topics for this subject.</p>
           </div>
         </div>
       </div>
@@ -161,57 +196,61 @@ export default function AdminCourseDetailPage() {
       {/* Create/Update Topic Modal */}
       {showCreate && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-[760px] max-w-full p-6">
+          <div className="bg-white rounded-xl shadow-xl w-[560px] max-w-full p-6">
             <h3 className="text-xl font-semibold text-[#333] mb-4">{editingTopicId == null ? 'Create topic' : 'Update topic'}</h3>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm text-gray-700">Section name</label>
+                <label className="block text-sm text-gray-700">Title</label>
                 <input
-                  value={topicName}
-                  onChange={(e) => setTopicName(e.target.value)}
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
                   className="mt-2 w-full border rounded-md px-4 py-2 text-sm"
-                  placeholder="Section name"
+                  placeholder="Microservices"
                 />
               </div>
-
-              <div className="border rounded-md">
-                <div className="flex items-center justify-between px-4 py-3 border-b">
-                  <span className="text-sm font-medium">Lectures</span>
-                  <button onClick={addLectureRow} className="text-sm border px-3 py-1 rounded">+ Add lecture</button>
-                </div>
-
-                <div className="p-3 space-y-2">
-                  {lectures.map((l) => (
-                    <div key={l.id} className="grid grid-cols-12 items-center gap-2">
-                      <input
-                        value={l.title}
-                        onChange={(e) => setLectures((prev) => prev.map((x) => x.id === l.id ? { ...x, title: e.target.value } : x))}
-                        className="col-span-7 border rounded-md px-3 py-2 text-sm"
-                        placeholder="Lecture name"
-                      />
-                      <input
-                        value={l.duration}
-                        onChange={(e) => setLectures((prev) => prev.map((x) => x.id === l.id ? { ...x, duration: e.target.value } : x))}
-                        className="col-span-3 border rounded-md px-3 py-2 text-sm"
-                        placeholder="Duration 10:00"
-                      />
-                      <input
-                        value={l.videoUrl ?? ''}
-                        onChange={(e) => setLectures((prev) => prev.map((x) => x.id === l.id ? { ...x, videoUrl: e.target.value } : x))}
-                        className="col-span-4 border rounded-md px-3 py-2 text-sm"
-                        placeholder="Video URL (e.g. https://...)"
-                      />
-                      <button onClick={() => removeLectureRow(l.id)} className="col-span-2 border px-3 py-2 rounded text-sm">Remove</button>
-                    </div>
-                  ))}
-                </div>
+              <div>
+                <label className="block text-sm text-gray-700">Description</label>
+                <input
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="mt-2 w-full border rounded-md px-4 py-2 text-sm"
+                  placeholder="Kiến trúc Microservices"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-700">Order Index</label>
+                <input
+                  value={orderIndex}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    const num = Number(v);
+                    setOrderIndex(!v ? '' : Number.isFinite(num) ? num : '');
+                  }}
+                  className="mt-2 w-full border rounded-md px-4 py-2 text-sm"
+                  placeholder="1"
+                />
               </div>
             </div>
 
             <div className="flex justify-end gap-3 mt-6">
               <button onClick={() => { setShowCreate(false); setEditingTopicId(null); resetForm(); }} className="border px-4 py-2 rounded-full text-sm">Cancel</button>
               <button onClick={handleCreateOrUpdate} className="bg-[#4ECDC4] text-white px-5 py-2 rounded-full text-sm">{editingTopicId == null ? 'Create' : 'Update'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Topic confirmation modal */}
+      {deleteTopicId !== null && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-[520px] max-w-full p-6">
+            <h3 className="text-xl font-semibold text-[#333] mb-2">Xóa chủ đề</h3>
+            <p className="text-sm text-gray-600">Bạn có chắc chắn muốn xóa chủ đề này?</p>
+            
+            <div className="flex justify-end gap-3 mt-6">
+              <button onClick={() => { setDeleteTopicId(null); setDeleteReason(''); }} className="border px-4 py-2 rounded-full text-sm">Hủy</button>
+              <button onClick={confirmDeleteTopic} className="bg-red-500 text-white px-5 py-2 rounded-full text-sm">Xóa</button>
             </div>
           </div>
         </div>

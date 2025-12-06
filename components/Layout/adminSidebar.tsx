@@ -17,7 +17,7 @@ export default function AdminSidebar() {
     ];
 
     return (
-        <aside className="top-0 left-0 fixed bg-[#2C3E50] shadow-lg w-64 h-screen text-white">
+        <aside className="top-0 left-0 fixed bg-[#2C3E50] shadow-lg w-64 h-full text-white">
             <div className="p-6 border-gray-700 border-b">
                 <h1 className="font-bold text-2xl">ITS Admin</h1>
                 <p className="mt-1 text-gray-400 text-sm">Administration Panel</p>

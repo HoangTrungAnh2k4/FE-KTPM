@@ -21,3 +21,18 @@ export async function createAdminAccount(data: {
     const res = await axiosInstance.post(`/admin/users`, data);
     return res.data;
 }
+
+export async function updateUserStatusApi(userId: number) {
+    const res = await axiosInstance.put(`/admin/users/${userId}/status`);
+    return res.data;
+}
+
+export async function updateUserRolesApi(userId: number, roles: string[]) {
+    const res = await axiosInstance.post(`/admin/users/${userId}/roles`, { roles });
+    return res.data;
+}
+
+export async function deleteUserApi(userId: number) {
+    const res = await axiosInstance.delete(`/admin/users/${userId}`);
+    return res.data;
+}

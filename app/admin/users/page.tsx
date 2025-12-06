@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { IoIosArrowDown } from 'react-icons/io';
 import {
     DropdownMenu,
@@ -8,9 +8,17 @@ import {
     DropdownMenuTrigger,
 } from '@/components/UI/dropdown-menu';
 import { type ListUser, type UserRole } from '@/lib/adminUsers';
-import { getListUsersApi, createAdminAccount } from '@/api/userApi';
+import {
+    getListUsersApi,
+    createAdminAccount,
+    updateUserStatusApi,
+    updateUserRolesApi,
+    deleteUserApi,
+} from '@/api/userApi';
 import { DataTable } from './data-table';
-import { columns } from './columns';
+import { buildColumns } from './columns';
+
+const ALLOWED_ROLES: UserRole[] = ['ADMIN', 'STUDENT', 'INSTRUCTOR'];
 
 export default function AdminUsersPage() {
     const [roleFilter, setRoleFilter] = useState<UserRole | ''>('');
@@ -28,7 +36,7 @@ export default function AdminUsersPage() {
     const [listUser, setListUser] = useState<ListUser[]>([]);
     const [historyPage, setHistoryPage] = useState<number>(1);
     const [historyTotalPages, setHistoryTotalPages] = useState<number>(1);
-    const [historyTotalItems, setHistoryTotalItems] = useState<number>(0);
+    const [historyTotalItems, setHistoryTotalItems] = useState<number>(1);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -96,18 +104,91 @@ export default function AdminUsersPage() {
         }));
     };
 
-    const fetchedUsers = async (page: number) => {
-        const data = await getListUsersApi({ page, size: 10 });
-        console.log(data.data.content);
-        setListUser(data.data.content);
-    };
+    const fetchedUsers = useCallback(
+        async (page: number = 1) => {
+            try {
+                const res = await getListUsersApi({ page, size: pageSize });
+                const payload = res?.data ?? null;
+
+                const users = payload?.content ?? [];
+                const pageFromApi = payload?.number ?? page;
+                const totalPages = payload?.totalPages ?? 1;
+                const totalItems = payload?.totalElements ?? users.length;
+
+                setListUser(users);
+                setHistoryPage(pageFromApi + 1); // API returns 0-based, UI is 1-based
+                setHistoryTotalPages(totalPages);
+                setHistoryTotalItems(totalItems);
+            } catch (error) {
+                console.log('Lỗi khi fetch users:', error);
+                setListUser([]);
+                setHistoryPage(1);
+                setHistoryTotalPages(1);
+                setHistoryTotalItems(0);
+            }
+        },
+        [pageSize],
+    );
+
+    const handleToggleStatus = useCallback(
+        async (userId: number) => {
+            try {
+                setError(null);
+                await updateUserStatusApi(userId);
+                await fetchedUsers(historyPage);
+                setSuccessMessage('Cập nhật trạng thái thành công');
+                setTimeout(() => setSuccessMessage(null), 2000);
+            } catch (err: any) {
+                const errorMsg = err?.response?.data?.message || err?.message || 'Không thể cập nhật trạng thái';
+                setError(errorMsg);
+            }
+        },
+        [fetchedUsers, historyPage],
+    );
+
+    const handleUpdateRole = useCallback(
+        async (userId: number, role: UserRole) => {
+            try {
+                setError(null);
+                await updateUserRolesApi(userId, [role]);
+                await fetchedUsers(historyPage);
+                setSuccessMessage('Cập nhật role thành công');
+                setTimeout(() => setSuccessMessage(null), 2000);
+            } catch (err: any) {
+                const errorMsg = err?.response?.data?.message || err?.message || 'Không thể cập nhật role';
+                setError(errorMsg);
+            }
+        },
+        [fetchedUsers, historyPage],
+    );
+
+    const handleDeleteUser = useCallback(
+        async (userId: number) => {
+            try {
+                setError(null);
+                await deleteUserApi(userId);
+                await fetchedUsers(historyPage);
+                setSuccessMessage('Xóa account thành công');
+                setTimeout(() => setSuccessMessage(null), 2000);
+            } catch (err: any) {
+                const errorMsg = err?.response?.data?.message || err?.message || 'Không thể xóa account';
+                setError(errorMsg);
+            }
+        },
+        [fetchedUsers, historyPage],
+    );
+
+    const tableColumns = useMemo(
+        () => buildColumns(handleToggleStatus, handleUpdateRole, handleDeleteUser, ALLOWED_ROLES),
+        [handleDeleteUser, handleToggleStatus, handleUpdateRole],
+    );
 
     useEffect(() => {
-        fetchedUsers(0);
+        fetchedUsers(1);
     }, []);
 
     return (
-        <div className="bg-[#f5f5f5] px-12 py-8 min-h-screen">
+        <div className="bg-[#f5f5f5] px-12 min-h-screen">
             {/* Success Toast */}
             {successMessage && (
                 <div className="top-4 right-4 z-50 fixed slide-in-from-top-2 animate-in duration-300">
@@ -136,18 +217,9 @@ export default function AdminUsersPage() {
             <div className="flex justify-between items-center mb-6">
                 <h1 className="font-semibold text-[#333] text-2xl">User Management</h1>
                 <div className="flex items-center gap-3">
-                    <select
-                        value={roleFilter}
-                        onChange={(e) => setRoleFilter((e.target.value || '') as UserRole | '')}
-                        className="px-3 py-2 border rounded-md text-sm"
-                    >
-                        <option value="">All roles</option>
-                        <option value="Student">Student</option>
-                        <option value="Instructor">Instructor</option>
-                    </select>
                     <button
                         onClick={() => setShowCreate(true)}
-                        className="bg-[#35aba3] hover:bg-[#2d8b85] px-4 py-2 rounded-full text-white text-sm cursor-pointer"
+                        className="bg-[#35aba3] hover:bg-[#2d8b85] px-4 py-2 rounded-full font-semibold text-white text-sm cursor-pointer"
                     >
                         Create user
                     </button>
@@ -156,7 +228,7 @@ export default function AdminUsersPage() {
 
             <div className="bg-white shadow-md rounded-xl overflow-hidden">
                 <DataTable
-                    columns={columns}
+                    columns={tableColumns}
                     data={listUser}
                     currentPage={historyPage}
                     totalPages={historyTotalPages}
@@ -278,14 +350,14 @@ export default function AdminUsersPage() {
                                     setError(null);
                                 }}
                                 disabled={isLoading}
-                                className="hover:bg-gray-50 disabled:opacity-50 px-4 py-2 border rounded-full text-sm"
+                                className="hover:bg-gray-50 disabled:opacity-50 px-4 py-2 border rounded-full text-sm cursor-pointer"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={onCreate}
                                 disabled={isLoading}
-                                className="bg-[#4ECDC4] hover:bg-[#3bb8af] disabled:opacity-50 px-5 py-2 rounded-full text-white text-sm disabled:cursor-not-allowed"
+                                className="bg-[#4ECDC4] hover:bg-[#3bb8af] disabled:opacity-50 px-5 py-2 rounded-full text-white text-sm cursor-pointer disabled:cursor-not-allowed"
                             >
                                 {isLoading ? 'Creating...' : 'Create'}
                             </button>

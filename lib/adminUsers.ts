@@ -5,5 +5,6 @@ export type ListUser = {
     fullName: string;
     email: string;
     roles: UserRole[];
-    active: boolean;
+    status?: 'ACTIVE' | 'INACTIVE';
+    active?: boolean;
 };

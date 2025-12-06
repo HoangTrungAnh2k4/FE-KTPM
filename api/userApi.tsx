@@ -36,3 +36,8 @@ export async function deleteUserApi(userId: number) {
     const res = await axiosInstance.delete(`/admin/users/${userId}`);
     return res.data;
 }
+
+export async function updateUserProfileApi(data: { fullName?: string; phone?: string; age?: number }) {
+    const res = await axiosInstance.put(`/users/me`, data);
+    return res.data;
+}

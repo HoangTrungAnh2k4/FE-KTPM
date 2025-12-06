@@ -21,6 +21,7 @@ import {
 const Header: React.FC = () => {
     const router = useRouter();
     const pathname = usePathname();
+    const { user, setUser } = useUserStore();
     const [mounted, setMounted] = useState(false);
 
     const isActive = (href: string) => {
@@ -29,17 +30,20 @@ const Header: React.FC = () => {
         return pathname.startsWith(href);
     };
 
-    const { user, logout } = useUserStore((state) => state);
+    const handleLogout = () => {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        document.cookie = 'access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        document.cookie = 'refresh_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        setUser(null);
+        window.location.href = '/login';
+    }
 
     useEffect(() => {
         setMounted(true);
     }, []);
 
-    const handleLogout = () => {
-        logout();
-        window.location.href = '/login';
-    };
-
+  
     return (
         <header className="z-100 fixed flex justify-between items-center bg-primary px-20 py-6 w-full h-[70px] text-white transition-all header">
             <Link href={'/'} className="flex justify-center items-center gap-2 logo">
@@ -94,7 +98,6 @@ const Header: React.FC = () => {
                                 <FaUser /> Tài khoản
                             </DropdownMenuItem>
 
-                            <DropdownMenuSeparator className="bg-neutral-500" />
                             <DropdownMenuItem onSelect={handleLogout} className="hover:bg-background/50 cursor-pointer">
                                 <FaSignOutAlt className="" />
                                 Đăng xuất

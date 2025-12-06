@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useUserStore } from '@/store/userStore';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
+import { loginApi } from '@/api/authApi';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -17,8 +18,9 @@ export default function LoginPage() {
     const [remember, setRemember] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
 
@@ -27,42 +29,22 @@ export default function LoginPage() {
             return;
         }
 
-        // Infer role from credentials (demo only)
-        // Administrator: admin / admin123
-        // Instructor: instructor / instr123
-        // Student: any other credentials
-        let inferredRole: 'Administrator' | 'Instructor' | 'Student' = 'Student';
-        if (username === 'admin' && password === 'admin123') {
-            inferredRole = 'Administrator';
-        } else if (username === 'instructor' && password === 'instr123') {
-            inferredRole = 'Instructor';
-        }
-
-        // Fake login: set a demo user with selected role and redirect.
-        const user = { id: '1', email: `${username}@example.com`, name: username, role: inferredRole } as const;
-        setUser(user);
-
-        // Also set a cookie so middleware can read it (mirrors zustand persist structure)
+        setLoading(true);
         try {
-            const cookieValue = encodeURIComponent(JSON.stringify({ state: { user } }));
-            const maxAge = remember ? 60 * 60 * 24 * 7 : 60 * 60; // 7 days or 1 hour
-            document.cookie = `user-storage=${cookieValue}; Path=/; Max-Age=${maxAge}`;
-        } catch {}
+            const res = await loginApi(username, password);
+            console.log(res);
 
-        // Optionally persist to localStorage when remember checked
-        if (remember) {
-            try {
-                localStorage.setItem('demo_user', JSON.stringify({ id: '1', name: username, role: inferredRole }));
-            } catch {}
-        }
-
-        // Redirect based on role
-        if (inferredRole === 'Administrator') {
-            router.push('/admin/subjects');
-        } else if (inferredRole === 'Instructor') {
-            router.push('/instructor/dashboard');
-        } else {
-            router.push('/');
+            if (res.status === 200) {
+                router.push('/');
+                localStorage.setItem('access_token', res.data.accessToken);
+                localStorage.setItem('refresh_token', res.data.refreshToken);
+                document.cookie = `access_token=${res.data.accessToken}; path=/;`;
+                document.cookie = `refresh_token=${res.data.refreshToken}; path=/;`;
+            }
+        } catch (err: any) {
+            setError(err.response?.data?.message || 'Đăng nhập thất bại. Vui lòng thử lại.');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -86,6 +68,7 @@ export default function LoginPage() {
                                 <label className="block font-medium text-neutral-700 text-sm">User name</label>
                                 <div className="mt-2">
                                     <input
+                                        type="email"
                                         value={username}
                                         onChange={(e) => setUsername(e.target.value)}
                                         className="px-4 py-3 border rounded-full outline-none w-full text-sm"
@@ -139,10 +122,20 @@ export default function LoginPage() {
                             <div className="pt-4">
                                 <button
                                     type="submit"
-                                    className="bg-teal-400 hover:bg-teal-500 shadow-sm py-3 rounded-full w-full font-medium text-white text-sm"
+                                    disabled={loading}
+                                    className="bg-teal-400 hover:bg-teal-500 disabled:opacity-50 shadow-sm py-3 rounded-full w-full font-medium text-white text-sm disabled:cursor-not-allowed"
                                 >
-                                    Login
+                                    {loading ? 'Đang đăng nhập...' : 'Login'}
                                 </button>
+                            </div>
+
+                            <div>
+                                <p className="text-neutral-600 text-sm text-center">
+                                    Don't have an account?{' '}
+                                    <a href="/register" className="text-teal-500 hover:underline">
+                                        Register
+                                    </a>
+                                </p>
                             </div>
                         </form>
                     </div>

@@ -1,14 +1,13 @@
 'use client';
 
 import { useUserStore } from '@/store/userStore';
+import { useEffect } from 'react';
 
 export default function Home() {
     const { user } = useUserStore();
 
-    if (user?.role === 'admin') {
-        return <>
-            <div>tun</div>
-        </>;
+    if (user?.role === 'ADMIN') {
+        return <></>;
     }
 
     return (

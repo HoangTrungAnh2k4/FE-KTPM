@@ -5,6 +5,8 @@ import { useUserStore } from '@/store/userStore';
 import { usePathname } from 'next/navigation';
 import Header from './header';
 import AdminSidebar from './adminSidebar';
+import { AppSidebar } from './app-sidebar';
+import { SidebarProvider, SidebarTrigger } from '../UI/sidebar';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
@@ -43,10 +45,17 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
     if (user?.role === 'ADMIN') {
         return (
-            <div className="flex min-h-screen">
-                <AdminSidebar />
-                <div className="flex-1 bg-[#f5f5f5] ml-64">{children}</div>
-            </div>
+            <SidebarProvider>
+                <AppSidebar />
+                <div className="flex-1 bg-[#f5f5f5]">
+                    <SidebarTrigger />
+                    {children}
+                </div>
+            </SidebarProvider>
+            // <div className="flex min-h-screen">
+            //     <AdminSidebar />
+            //     <div className="flex-1 bg-[#f5f5f5] ml-64">{children}</div>
+            // </div>
         );
     }
 

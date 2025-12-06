@@ -19,10 +19,6 @@ import { useUserStore } from '@/store/userStore';
 // Menu items.
 const items = [
     {
-        title: 'Dashboard',
-        url: '/admin/dashboard',
-    },
-    {
         title: 'Manage Subjects',
         url: '/admin/subjects',
     },

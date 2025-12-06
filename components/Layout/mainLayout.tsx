@@ -28,7 +28,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         try {
             const value = decodeURIComponent(cookie.split('=')[1]);
             const user = JSON.parse(value);
-            console.log(user);
 
             setUser(user);
         } catch (err) {

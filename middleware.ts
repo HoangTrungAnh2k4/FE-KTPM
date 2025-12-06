@@ -24,24 +24,24 @@ export async function middleware(req: NextRequest) {
                 const role = Array.isArray(rawRole) ? rawRole[0] : rawRole;
 
                 // Nếu đang ở /login hoặc /register → redirect về home + set cookie
-                if (pathname === '/login' || pathname === '/register') {
-                    const res = NextResponse.redirect(new URL('/', req.url));
-                    res.cookies.set(
-                        'user_profile',
-                        JSON.stringify({
-                            id: userData.id,
-                            email: userData.email,
-                            name: userData.fullName,
-                            avatar: 'https://www.rophim.li/images/avatars/pack1/14.jpg',
-                            role,
-                        }),
-                        {
-                            httpOnly: false,
-                            path: '/',
-                        },
-                    );
-                    return res;
-                }
+                // if (pathname === '/login' || pathname === '/register') {
+                //     const res = NextResponse.redirect(new URL('/', req.url));
+                //     res.cookies.set(
+                //         'user_profile',
+                //         JSON.stringify({
+                //             id: userData.id,
+                //             email: userData.email,
+                //             name: userData.fullName,
+                //             avatar: 'https://www.rophim.li/images/avatars/pack1/14.jpg',
+                //             role,
+                //         }),
+                //         {
+                //             httpOnly: false,
+                //             path: '/',
+                //         },
+                //     );
+                //     return res;
+                // }
 
                 // -------- PHÂN QUYỀN THEO ROLE --------
 

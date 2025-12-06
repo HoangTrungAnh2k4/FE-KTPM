@@ -17,7 +17,7 @@ export default function Home() {
         }
 
         if (user.role === 'ADMIN') {
-            router.replace('/admin/dashboard');
+            router.replace('/admin/subjects');
             return;
         }
 

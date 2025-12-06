@@ -1,6 +1,10 @@
+'use client';
+
 import SubjectFilter from '../../components/SubjectFilter';
 import CourseCard from '../../components/CourseCard';
 import Link from 'next/link';
+import { useEffect } from 'react';
+import { getAllSubjectApi } from '@/api/SubjectApi';
 
 const sample = [
     {
@@ -42,6 +46,18 @@ const sample = [
 ];
 
 export default function SubjectPage() {
+    useEffect(() => {
+        const fetchSubjects = async () => {
+            try {
+                const response = await getAllSubjectApi(1, 10);
+                console.log('Fetched subjects:', response);
+            } catch (error) {
+                console.error('Error fetching subjects:', error);
+            }
+        };
+        fetchSubjects();
+    }, []);
+
     return (
         <div className="px-12 py-4">
             <SubjectFilter total={957} />

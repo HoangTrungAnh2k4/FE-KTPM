@@ -30,7 +30,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
     if (isNoLayout) return <>{children}</>;
 
-    if (user?.role === 'admin') {
+    if (user?.role === 'ADMIN') {
         return (
             <SidebarProvider>
                 <AppSidebar />

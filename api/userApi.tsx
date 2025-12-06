@@ -1,4 +1,4 @@
-import axiosInstance from '@/utils/axiosInstance';
+import axiosInstance from '@/utils/axiosInstance0';
 
 export async function getUserProfileApi() {
     const res = await axiosInstance.get('/users/me');

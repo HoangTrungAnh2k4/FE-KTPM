@@ -39,7 +39,7 @@ export default function LoginPage() {
                 document.cookie = `refresh_token=${res.data.refreshToken}; path=/;`;
             }
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Đăng ký thất bại. Vui lòng thử lại.');
+            setError(err.response?.data?.message || 'Đăng nhập thất bại. Vui lòng thử lại.');
         } finally {
             setLoading(false);
         }

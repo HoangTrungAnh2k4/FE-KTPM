@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+const API_BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL_0;
 
 export async function loginApi(email: string, password: string) {
     const res = await axios.post(`${API_BACKEND_URL}/auth/login`, {

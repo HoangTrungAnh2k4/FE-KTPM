@@ -1,223 +1,226 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import AdminCourseCard from '@/components/AdminCourseCard';
 import Link from 'next/link';
-// Revert to native selects (removed custom DropdownMenu)
 import { useRouter } from 'next/navigation';
+import {
+    getAllSubjectApi,
+    createSubjectApi,
+    updateSubjectApi,
+    deleteSubjectApi,
+} from '@/api/SubjectApi';
+import {
+    Pagination,
+    PaginationContent,
+    PaginationEllipsis,
+    PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
+} from "@/components/UI/pagination"
 
-const sampleCourses = [
-    {
-        id: 1,
-        image: 'https://picsum.photos/seed/1/800/600',
-        category: 'Design',
-        duration: '3 Month',
-        title: 'AWS Certified solutions Architect',
-        description: 'Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor',
-        price: 23.0,
-        originalPrice: 33.0,
-        assign: 'Lina',
-    },
-    {
-        id: 2,
-        image: 'https://picsum.photos/seed/2/800/600',
-        category: 'Design',
-        duration: '3 Month',
-        title: 'AWS Certified solutions Architect',
-        description: 'Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor',
-        price: 23.0,
-        originalPrice: 33.0,
-        assign: 'Alex',
-    },
-    {
-        id: 3,
-        image: 'https://picsum.photos/seed/3/800/600',
-        category: 'Design',
-        duration: '3 Month',
-        title: 'AWS Certified solutions Architect',
-        description: 'Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor',
-        price: 23.0,
-        originalPrice: 33.0,
-        assign: 'Kim',
-    },
-    {
-        id: 4,
-        image: 'https://picsum.photos/seed/4/800/600',
-        category: 'Design',
-        duration: '3 Month',
-        title: 'AWS Certified solutions Architect',
-        description: 'Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor',
-        price: 23.0,
-        originalPrice: 11.0,
-        assign: 'Sam',
-    },
-];
+
+type Subject = {
+    id: number;
+    code: string;
+    name: string;
+    level: string;
+    description?: string;
+    status?: 'ACTIVE' | 'INACTIVE' | 'ARCHIVED';
+};
 
 export default function AdminSubjectsPage() {
-    const [courses, setCourses] = useState(sampleCourses);
-    const [showCreate, setShowCreate] = useState(false);
-    const [showEdit, setShowEdit] = useState<null | number>(null);
     const router = useRouter();
+    const [subjects, setSubjects] = useState<Subject[]>([]);
+    const [page, setPage] = useState(0);
+    const [size] = useState(12);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalElements, setTotalElements] = useState(0);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
-    // Form state
-    const [title, setTitle] = useState('');
+    // Delete confirmation modal state
+    const [deleteId, setDeleteId] = useState<number | null>(null);
+    const [deleteReason, setDeleteReason] = useState('');
+
+    // Form state mapped to API payload
+    const [showCreate, setShowCreate] = useState(false);
+    const [editId, setEditId] = useState<null | number>(null);
+    const [code, setCode] = useState('');
+    const [name, setName] = useState('');
+    const [level, setLevel] = useState('UNDERGRADUATE');
     const [description, setDescription] = useState('');
-    const [category, setCategory] = useState('');
-    const [topic, setTopic] = useState('');
-    const [duration, setDuration] = useState('Day');
-    const [price, setPrice] = useState('23.00');
-    const [originalPrice, setOriginalPrice] = useState('33.00');
-    const [assign, setAssign] = useState('');
+    const [status, setStatus] = useState<'DRAFT' | 'ACTIVE' | 'INACTIVE' | 'ARCHIVED' | ''>('');
 
     const resetForm = () => {
-        setTitle('');
+        setCode('');
+        setName('');
+        setLevel('UNDERGRADUATE');
         setDescription('');
-        setCategory('');
-        setTopic('');
-        setDuration('Day');
-        setPrice('23.00');
-        setOriginalPrice('33.00');
-        setAssign('');
+        setStatus('');
     };
 
-    const handleDelete = (id: number) => {
-        if (confirm('Bạn có chắc chắn muốn xóa môn học này?')) {
-            setCourses(courses.filter((course) => course.id !== id));
+    const fetchSubjects = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const data = await getAllSubjectApi(page, size);
+            // Normalize to handle shape: { status, message, data: { items, ... } }
+            console.log('API response data:', data);
+            const payload: any = data && typeof data === 'object' && 'data' in (data as any) ? (data as any).data : data;
+            const items: Subject[] = Array.isArray(payload?.items)
+                ? payload.items
+                : Array.isArray(payload?.content)
+                ? payload.content
+                : Array.isArray(payload)
+                ? payload
+                : [];
+            setSubjects(items);
+            // Read pagination metadata if available
+            const tp = Number(payload?.totalPages ?? payload?.total_pages ?? 1);
+            const te = Number(payload?.totalElements ?? payload?.total_elements ?? items.length);
+            setTotalPages(Number.isFinite(tp) && tp > 0 ? tp : 1);
+            setTotalElements(Number.isFinite(te) ? te : items.length);
+            console.log('Subjects fetched:', items.length);
+            console.log('Fetched subjects:', items);
+        } catch (e: any) {
+            setError(e?.message || 'Không thể tải danh sách môn học');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchSubjects();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [page]);
+
+    const handleDeleteRequest = (id: number) => {
+        setDeleteId(id);
+        setDeleteReason('');
+    };
+
+    const confirmDelete = async () => {
+        if (deleteId == null) return;
+        try {
+            await deleteSubjectApi(deleteId);
+            setSubjects((prev) => prev.filter((s) => s.id !== deleteId));
+            setDeleteId(null);
+            setDeleteReason('');
+        } catch (e: any) {
+            // Show lightweight inline error (no alert)
+            setError(e?.message || 'Xóa môn học thất bại');
         }
     };
 
     const handleEdit = (id: number) => {
-        const course = courses.find((c) => c.id === id);
-        if (!course) return;
-        setShowEdit(id);
-        setTitle(course.title);
-        setDescription(course.description);
-        setCategory(course.category);
-        setTopic('');
-        setDuration(course.duration);
-        setPrice(String(course.price));
-        setOriginalPrice(String(course.originalPrice));
-        setAssign(course.assign ?? '');
+        const subject = subjects.find((s) => s.id === id);
+        if (!subject) return;
+        setEditId(id);
+        setShowCreate(false);
+        setCode(subject.code || '');
+        setName(subject.name || '');
+        setLevel(subject.level || 'UNDERGRADUATE');
+        setDescription(subject.description || '');
+        setStatus(subject.status || '');
     };
 
     const handleViewDetail = (id: number) => {
         router.push(`/admin/subjects/${id}`);
     };
 
-    const handleCreate = () => {
-        if (!title.trim()) return alert('Vui lòng nhập Title');
-        const newCourse = {
-            id: Math.max(0, ...courses.map((c) => c.id)) + 1,
-            image: `https://picsum.photos/seed/${Math.floor(Math.random() * 1000)}/800/600`,
-            category: category || 'General',
-            duration: duration || 'Day',
-            title: title,
-            description: description || 'No description',
-            price: parseFloat(price) || 0,
-            originalPrice: parseFloat(originalPrice) || 0,
-            assign: assign || '',
-        };
-        setCourses([newCourse, ...courses]);
-        setShowCreate(false);
-        resetForm();
+    const handleCreate = async () => {
+        if (!code.trim() || !name.trim()) return alert('Vui lòng nhập Code và Name');
+        try {
+            const res = await createSubjectApi({ code, name, level, description });
+            const created: Subject = res?.data || res; // backend may wrap in {data}
+            console.log('Created subject:', created);
+            if (created?.id) {
+                setSubjects((prev) => [created, ...prev]);
+            } else {
+                // Fallback: refetch list
+                fetchSubjects();
+            }
+            setShowCreate(false);
+            resetForm();
+        } catch (e: any) {
+            alert(e?.message || 'Tạo môn học thất bại');
+        }
     };
 
-    const handleUpdate = () => {
-        if (showEdit == null) return;
-        setCourses((prev) =>
-            prev.map((c) =>
-                c.id === showEdit
-                    ? {
-                          ...c,
-                          title,
-                          description,
-                          category,
-                          duration,
-                          price: parseFloat(price) || c.price,
-                          originalPrice: parseFloat(originalPrice) || c.originalPrice,
-                          assign,
-                      }
-                    : c
-            )
-        );
-        setShowEdit(null);
-        resetForm();
+    const handleUpdate = async () => {
+        if (editId == null) return;
+        if (!code.trim() || !name.trim()) return alert('Vui lòng nhập Code và Name');
+        try {
+            const res = await updateSubjectApi(editId, { code, name, level, description, status: status || undefined });
+            const updated: Subject = res?.data || res;
+            setSubjects((prev) => prev.map((s) => (s.id === editId ? { ...s, ...updated } : s)));
+            setEditId(null);
+            resetForm();
+        } catch (e: any) {
+            alert(e?.message || 'Cập nhật môn học thất bại');
+        }
     };
+
+    const cards = useMemo(() => {
+        // Map subject to AdminCourseCard props with placeholders for image/price
+        const list = Array.isArray(subjects) ? subjects : [];
+        return list.map((s) => ({
+            id: s.id,
+            image: `https://picsum.photos/seed/${s.id}/800/600`,
+            category: s.level,
+            duration: s.status || 'ACTIVE',
+            title: `${s.code} - ${s.name}`,
+            description: s.description || '',
+            price: 0,
+            originalPrice: 0,
+            assign: '',
+        }));
+    }, [subjects]);
 
     return (
         <div className="px-12 py-8 bg-[#f5f5f5] min-h-screen">
-            {/* Section 1 */}
-            <div className="mb-12">
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="font-semibold text-[#333] text-2xl">Marketing Articles</h2>
-                    <div className="flex items-center gap-4">
-                        <button
-                            onClick={() => {
-                                resetForm();
-                                setShowCreate(true);
-                            }}
-                            className="bg-[#4ECDC4] hover:opacity-90 px-4 py-2 rounded-full text-white text-sm"
-                        >
-                            Create Subject
-                        </button>
-                        <Link href="#" className="font-medium text-[#4ECDC4] hover:underline text-sm">
-                            See all
-                        </Link>
-                    </div>
-                </div>
-
-                <div className="gap-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-                    {courses.map((course) => (
-                        <AdminCourseCard
-                            key={course.id}
-                            id={course.id}
-                            image={course.image}
-                            category={course.category}
-                            duration={course.duration}
-                            title={course.title}
-                            description={course.description}
-                            price={course.price}
-                            originalPrice={course.originalPrice}
-                            onDelete={handleDelete}
-                            onEdit={handleEdit}
-                            onViewDetail={handleViewDetail}
-                            assign={course.assign}
-                        />
-                    ))}
+            <div className="mb-6 flex items-center justify-between">
+                <h2 className="font-semibold text-[#333] text-2xl">Subjects Management</h2>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => {
+                            resetForm();
+                            setEditId(null);
+                            setShowCreate(true);
+                        }}
+                        className="bg-[#4ECDC4] hover:opacity-90 px-4 py-2 rounded-full text-white text-sm"
+                    >
+                        Create Subject
+                    </button>
+                   
                 </div>
             </div>
 
-            {/* Section 2 */}
-            <div>
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="font-semibold text-[#333] text-2xl">Marketing Articles</h2>
-                    <Link href="#" className="font-medium text-[#4ECDC4] hover:underline text-sm">
-                        See all
-                    </Link>
-                </div>
+            {loading && <p>Đang tải...</p>}
+            {error && <p className="text-red-600">{error}</p>}
 
-                <div className="gap-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-                    {courses.map((course) => (
-                        <AdminCourseCard
-                            key={`section2-${course.id}`}
-                            id={course.id}
-                            image={course.image}
-                            category={course.category}
-                            duration={course.duration}
-                            title={course.title}
-                            description={course.description}
-                            price={course.price}
-                            originalPrice={course.originalPrice}
-                            onDelete={handleDelete}
-                            onEdit={handleEdit}
-                            onViewDetail={handleViewDetail}
-                            assign={course.assign}
-                        />
-                    ))}
-                </div>
+            <div className="gap-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                {cards.map((course) => (
+                    <AdminCourseCard
+                        key={course.id}
+                        id={course.id}
+                        image={course.image}
+                        category={course.category}
+                        duration={course.duration}
+                        title={course.title}
+                        description={course.description}
+                        price={course.price}
+                        originalPrice={course.originalPrice}
+                        onDelete={handleDeleteRequest}
+                        onEdit={handleEdit}
+                        onViewDetail={handleViewDetail}
+                        assign={course.assign}
+                    />
+                ))}
             </div>
 
-            {/* Create / Edit form */}
-            {(showCreate || showEdit !== null) && (
+            {(showCreate || editId !== null) && (
                 <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4">
                     <div className="bg-white shadow-xl p-6 rounded-xl w-[720px]">
                         <h3 className="font-semibold text-xl text-[#333]">
@@ -225,13 +228,36 @@ export default function AdminSubjectsPage() {
                         </h3>
                         <div className="mt-6 space-y-4">
                             <div>
-                                <label className="block text-sm text-gray-700">Title</label>
+                                <label className="block text-sm text-gray-700">Code</label>
                                 <input
-                                    value={title}
-                                    onChange={(e) => setTitle(e.target.value)}
+                                    value={code}
+                                    onChange={(e) => setCode(e.target.value)}
                                     className="mt-2 px-4 py-3 border rounded-lg w-full text-sm"
-                                    placeholder="Your course title"
+                                    placeholder="KTPM101"
                                 />
+                            </div>
+                            <div>
+                                <label className="block text-sm text-gray-700">Name</label>
+                                <input
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    className="mt-2 px-4 py-3 border rounded-lg w-full text-sm"
+                                    placeholder="Kiến trúc phần mềm"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm text-gray-700">Level</label>
+                                <select
+                                    value={level}
+                                    onChange={(e) => setLevel(e.target.value)}
+                                    className="mt-2 px-4 py-3 border rounded-lg w-full text-sm"
+                                >
+                                    <option value="Beginner">Beginner</option>
+                                    <option value="Elementary">Elementary</option>
+                                    <option value="Intermediate">Intermediate</option>
+                                    <option value="Advanced">Advanced</option>
+                                    <option value="Expert">Expert</option>
+                                </select>
                             </div>
                             <div>
                                 <label className="block text-sm text-gray-700">Description</label>
@@ -239,81 +265,32 @@ export default function AdminSubjectsPage() {
                                     value={description}
                                     onChange={(e) => setDescription(e.target.value)}
                                     className="mt-2 px-4 py-3 border rounded-lg w-full text-sm"
-                                    placeholder="Your course description"
+                                    placeholder="Mô tả môn học"
                                 />
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {!showCreate && (
                                 <div>
-                                    <label className="block text-sm text-gray-700">Course Category</label>
+                                    <label className="block text-sm text-gray-700">Status</label>
                                     <select
-                                        value={category}
-                                        onChange={(e) => setCategory(e.target.value)}
+                                        value={status}
+                                        onChange={(e) => setStatus(e.target.value as any)}
                                         className="mt-2 px-4 py-3 border rounded-lg w-full text-sm"
                                     >
-                                        <option value="">Select..</option>
-                                        <option value="Design">Design</option>
-                                        <option value="Software">Software</option>
-                                        <option value="Marketing">Marketing</option>
+                                        <option value="">(unchanged)</option>
+                                        <option value="DRAFT">DRAFT</option>
+                                        <option value="ACTIVE">ACTIVE</option>
+                                        <option value="INACTIVE">INACTIVE</option>
+                                        <option value="ARCHIVED">ARCHIVED</option>
                                     </select>
                                 </div>
-                                <div>
-                                    <label className="block text-sm text-gray-700">Assign</label>
-                                    <input
-                                        value={assign}
-                                        onChange={(e) => setAssign(e.target.value)}
-                                        className="mt-2 px-4 py-3 border rounded-lg w-full text-sm"
-                                        placeholder="Instructor name or assignee"
-                                    />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-sm text-gray-700">Course Topic</label>
-                                <input
-                                    value={topic}
-                                    onChange={(e) => setTopic(e.target.value)}
-                                    className="mt-2 px-4 py-3 border rounded-lg w-full text-sm"
-                                    placeholder="What is primarily taught in your course?"
-                                />
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div>
-                                    <label className="block text-sm text-gray-700">Duration</label>
-                                    <select
-                                        value={duration}
-                                        onChange={(e) => setDuration(e.target.value)}
-                                        className="mt-2 px-4 py-3 border rounded-lg w-full text-sm"
-                                    >
-                                        <option value="Day">Day</option>
-                                        <option value="Week">Week</option>
-                                        <option value="Month">Month</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm text-gray-700">Price</label>
-                                    <input
-                                        value={price}
-                                        onChange={(e) => setPrice(e.target.value)}
-                                        className="mt-2 px-4 py-3 border rounded-lg w-full text-sm"
-                                        placeholder="23.00"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm text-gray-700">Original Price</label>
-                                    <input
-                                        value={originalPrice}
-                                        onChange={(e) => setOriginalPrice(e.target.value)}
-                                        className="mt-2 px-4 py-3 border rounded-lg w-full text-sm"
-                                        placeholder="33.00"
-                                    />
-                                </div>
-                            </div>
+                            )}
                         </div>
 
                         <div className="flex justify-end gap-3 mt-8">
                             <button
                                 onClick={() => {
                                     setShowCreate(false);
-                                    setShowEdit(null);
+                                    setEditId(null);
                                     resetForm();
                                 }}
                                 className="border px-4 py-2 rounded-full text-sm"
@@ -321,17 +298,11 @@ export default function AdminSubjectsPage() {
                                 Cancel
                             </button>
                             {showCreate ? (
-                                <button
-                                    onClick={handleCreate}
-                                    className="bg-[#4ECDC4] px-5 py-2 rounded-full text-white text-sm"
-                                >
+                                <button onClick={handleCreate} className="bg-[#4ECDC4] px-5 py-2 rounded-full text-white text-sm">
                                     Create
                                 </button>
                             ) : (
-                                <button
-                                    onClick={handleUpdate}
-                                    className="bg-[#4ECDC4] px-5 py-2 rounded-full text-white text-sm"
-                                >
+                                <button onClick={handleUpdate} className="bg-[#4ECDC4] px-5 py-2 rounded-full text-white text-sm">
                                     Update
                                 </button>
                             )}
@@ -339,6 +310,59 @@ export default function AdminSubjectsPage() {
                     </div>
                 </div>
             )}
-        </div>
-    );
+            {/* Delete confirmation modal */}
+            {deleteId !== null && (
+                <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4">
+                    <div className="bg-white shadow-xl p-6 rounded-xl w-[520px]">
+                        <h3 className="font-semibold text-xl text-[#333]">Xóa môn học</h3>
+                        <p className="mt-2 text-sm text-gray-600">Bạn có chắc chắn muốn xóa môn học này?</p>
+                        
+                        <div className="flex justify-end gap-3 mt-6">
+                            <button onClick={() => { setDeleteId(null); setDeleteReason(''); }} className="border px-4 py-2 rounded-full text-sm">Hủy</button>
+                            <button onClick={confirmDelete} className="bg-red-500 px-5 py-2 rounded-full text-white text-sm">Xóa</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+                        {/* Pagination */}
+                        <div className="flex justify-center pt-6 w-full">
+                                <Pagination>
+                                        <PaginationContent>
+                                                <PaginationItem>
+                                                        <PaginationPrevious
+                                                                
+                                                                onClick={(e) => {
+                                                                        e.preventDefault();
+                                                                        setPage((p) => Math.max(0, p - 1));
+                                                                }}
+                                                        />
+                                                </PaginationItem>
+                                                {Array.from({ length: totalPages <=5 ? totalPages : 5 }).map((_, i) => (
+                                                        <PaginationItem key={i}>
+                                                                <PaginationLink
+                                                                        
+                                                                        isActive={i === page}
+                                                                        onClick={(e) => {
+                                                                                e.preventDefault();
+                                                                                setPage(i);
+                                                                        }}
+                                                                >
+                                                                        {i + 1}
+                                                                </PaginationLink>
+                                                        </PaginationItem>
+                                                ))}
+                                                <PaginationItem>
+                                                        <PaginationNext
+                                                                
+                                                                onClick={(e) => {
+                                                                        e.preventDefault();
+                                                                        setPage((p) => (p + 1 < totalPages ? p + 1 : p));
+                                                                }}
+                                                        />
+                                                </PaginationItem>
+                                        </PaginationContent>
+                                </Pagination>
+                        </div>
+                </div>
+        );
 }

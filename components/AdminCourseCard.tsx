@@ -31,7 +31,10 @@ export default function AdminCourseCard({
     onViewDetail,
 }: Props) {
     return (
-        <div className="relative bg-white shadow-md hover:shadow-lg p-4 rounded-xl transition-shadow">
+        <div
+            className="relative bg-white shadow-md hover:shadow-lg p-4 rounded-xl transition-shadow cursor-pointer"
+            onClick={() => onViewDetail(id)}
+        >
             {/* Course Image */}
             <div className="rounded-lg overflow-hidden">
                 <Image src={image} alt={title} width={400} height={240} className="w-full h-48 object-cover" />
@@ -80,23 +83,34 @@ export default function AdminCourseCard({
 
                 <h3 className="mt-3 font-semibold text-[#333] text-lg">{title}</h3>
 
-                <p className="mt-2 text-gray-600 text-sm leading-relaxed">{description}</p>
-                {assign && (
-                    <p className="mt-2 text-gray-500 text-xs">
-                        <span className="font-medium">Assign:</span> {assign}
-                    </p>
-                )}
-
                 <div className="flex justify-between items-center mt-4">
-                    <div className="flex items-center gap-2">
-                        <span className="font-bold text-[#4ECDC4] text-lg">${price.toFixed(2)}</span>
-                        <span className="line-through text-gray-400 text-sm">${originalPrice.toFixed(2)}</span>
+                    <div className="flex items-baseline gap-1">
+                        <p
+                            className="mt-2 text-gray-600 text-sm leading-relaxed max-w-40"
+                            style={{
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                            }}
+                        >
+                            {description}
+                        </p>
+                        {assign && (
+                            <p className="mt-2 text-gray-500 text-xs">
+                                <span className="font-medium">Assign:</span> {assign}
+                            </p>
+                        )}
                     </div>
                     {/* Three dots menu */}
                     <div className="">
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <button className="hover:bg-gray-100 p-2 rounded-full transition-colors">
+                                <button
+                                    className="hover:bg-gray-100 p-2 rounded-full transition-colors"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
                                     <svg
                                         xmlns="http://www.w3.org/2000/svg"
                                         className="w-5 h-5 text-gray-600"
@@ -109,21 +123,25 @@ export default function AdminCourseCard({
                                     </svg>
                                 </button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="bg-white shadow-lg border rounded-lg w-48">
+                            <DropdownMenuContent
+                                align="end"
+                                className="bg-white shadow-lg border rounded-lg w-48"
+                                onClick={(e) => e.stopPropagation()}
+                            >
                                 <DropdownMenuItem
-                                    onClick={() => onViewDetail(id)}
-                                    className="hover:bg-gray-100 px-4 py-2 rounded cursor-pointer"
-                                >
-                                    View Detail
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                    onClick={() => onEdit(id)}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onEdit(id);
+                                    }}
                                     className="hover:bg-gray-100 px-4 py-2 rounded cursor-pointer"
                                 >
                                     Edit Course
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
-                                    onClick={() => onDelete(id)}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onDelete(id);
+                                    }}
                                     className="hover:bg-red-50 px-4 py-2 rounded text-red-600 cursor-pointer"
                                 >
                                     Delete Course

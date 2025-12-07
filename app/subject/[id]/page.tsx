@@ -63,7 +63,7 @@ export default function CourseDetail() {
             <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-3">
                     <button
-                        onClick={() => router.back()}
+                        onClick={() => router.replace(`/subject`)}
                         className="flex items-center gap-2 hover:bg-gray-50 px-3 py-2 border rounded-full text-sm cursor-pointer"
                         aria-label="Go back"
                     >

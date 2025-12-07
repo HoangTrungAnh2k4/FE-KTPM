@@ -1,7 +1,7 @@
 'use client';
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo, useState } from 'react';
 import AdminCourseCard from '@/components/AdminCourseCard';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
     getAllSubjectApi,
@@ -9,12 +9,12 @@ import {
     updateSubjectApi,
     deleteSubjectApi,
     assignInstructorApi,
+    removeInstructorApi,
 } from '@/api/SubjectApi';
 import { getListUsersApi } from '@/api/userApi';
 import {
     Pagination,
     PaginationContent,
-    PaginationEllipsis,
     PaginationItem,
     PaginationLink,
     PaginationNext,
@@ -28,6 +28,7 @@ type Subject = {
     level: string;
     description?: string;
     status?: 'DRAFT' | 'ACTIVE' | 'INACTIVE' | 'ARCHIVED';
+    instructors?: { instructorId: number; instructorName: string }[];
 };
 
 type Instructor = {
@@ -43,7 +44,6 @@ export default function AdminSubjectsPage() {
     const [page, setPage] = useState(0);
     const [size] = useState(12);
     const [totalPages, setTotalPages] = useState(1);
-    const [totalElements, setTotalElements] = useState(0);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -52,13 +52,10 @@ export default function AdminSubjectsPage() {
 
     // Delete confirmation modal state
     const [deleteId, setDeleteId] = useState<number | null>(null);
-    const [deleteReason, setDeleteReason] = useState('');
 
-    // Assign instructor modal state
-    const [assignModalOpen, setAssignModalOpen] = useState(false);
-    const [assignSubjectId, setAssignSubjectId] = useState<number | null>(null);
-    const [instructorId, setInstructorId] = useState('');
-    const [instructors, setInstructors] = useState<Instructor[]>([]);
+    // Instructor selection state (used inside edit modal)
+    const [instructorSelectId, setInstructorSelectId] = useState('');
+    const [instructorOptions, setInstructorOptions] = useState<Instructor[]>([]);
     const [loadingInstructors, setLoadingInstructors] = useState(false);
 
     // Form state mapped to API payload
@@ -97,9 +94,8 @@ export default function AdminSubjectsPage() {
             setSubjects(items);
             // Read pagination metadata if available
             const tp = Number(payload?.totalPages ?? payload?.total_pages ?? 1);
-            const te = Number(payload?.totalElements ?? payload?.total_elements ?? items.length);
+            // total elements currently unused in UI
             setTotalPages(Number.isFinite(tp) && tp > 0 ? tp : 1);
-            setTotalElements(Number.isFinite(te) ? te : items.length);
             console.log('Subjects fetched:', items.length);
             console.log('Fetched subjects:', items);
         } catch (e: any) {
@@ -116,7 +112,6 @@ export default function AdminSubjectsPage() {
 
     const handleDeleteRequest = (id: number) => {
         setDeleteId(id);
-        setDeleteReason('');
     };
 
     const confirmDelete = async () => {
@@ -125,7 +120,6 @@ export default function AdminSubjectsPage() {
             await deleteSubjectApi(deleteId);
             setSubjects((prev) => prev.filter((s) => s.id !== deleteId));
             setDeleteId(null);
-            setDeleteReason('');
             setNotification({ type: 'success', message: 'Xóa môn học thành công' });
             setTimeout(() => setNotification(null), 3000);
         } catch (e: any) {
@@ -155,18 +149,15 @@ export default function AdminSubjectsPage() {
         setLevel(subject.level || 'UNDERGRADUATE');
         setDescription(subject.description || '');
         setStatus(subject.status || '');
+        // Load instructor options when opening edit
+        loadInstructorOptions();
     };
 
     const handleViewDetail = (id: number) => {
         router.push(`/admin/subjects/${id}`);
     };
 
-    const handleAssignInstructor = async (id: number) => {
-        setAssignSubjectId(id);
-        setInstructorId('');
-        setAssignModalOpen(true);
-
-        // Load instructors list
+    const loadInstructorOptions = async () => {
         setLoadingInstructors(true);
         try {
             const data = await getListUsersApi({ page: 0, size: 1000 });
@@ -180,29 +171,42 @@ export default function AdminSubjectsPage() {
                 ? payload
                 : [];
 
-            // Filter instructors (users with 'INSTRUCTOR' role)
-            const instructorsList = users.filter(
+            const instructorsList: Instructor[] = users.filter(
                 (user: any) => user.roles && Array.isArray(user.roles) && user.roles.includes('INSTRUCTOR'),
             );
-            setInstructors(instructorsList);
+            setInstructorOptions(instructorsList);
         } catch (e: any) {
             console.error('Error loading instructors:', e);
-            setInstructors([]);
+            setInstructorOptions([]);
         } finally {
             setLoadingInstructors(false);
         }
     };
 
-    const confirmAssignInstructor = async () => {
-        if (assignSubjectId == null || !instructorId.trim()) {
+    const addInstructorToSubject = async () => {
+        if (editId == null || !instructorSelectId.trim()) {
             setNotification({ type: 'error', message: 'Vui lòng chọn giảng viên' });
             return;
         }
         try {
-            await assignInstructorApi(assignSubjectId, { instructorId: Number(instructorId) });
-            setAssignModalOpen(false);
-            setAssignSubjectId(null);
-            setInstructorId('');
+            const selected = instructorOptions.find((i) => i.id === Number(instructorSelectId));
+            await assignInstructorApi(editId, { instructorId: Number(instructorSelectId) });
+            setSubjects((prev) =>
+                prev.map((s) =>
+                    s.id === editId
+                        ? {
+                              ...s,
+                              instructors: [
+                                  ...(s.instructors || []),
+                                  selected
+                                      ? { instructorId: selected.id, instructorName: selected.fullName }
+                                      : { instructorId: Number(instructorSelectId), instructorName: 'Instructor' },
+                              ],
+                          }
+                        : s,
+                ),
+            );
+            setInstructorSelectId('');
             setNotification({ type: 'success', message: 'Gán giảng viên thành công' });
             setTimeout(() => setNotification(null), 3000);
         } catch (e: any) {
@@ -223,6 +227,34 @@ export default function AdminSubjectsPage() {
             setTimeout(() => setNotification(null), 5000);
         }
     };
+
+    const removeInstructorFromSubject = async (instructorId: number) => {
+        if (editId == null) return;
+        try {
+            await removeInstructorApi(editId, instructorId);
+            setSubjects((prev) =>
+                prev.map((s) =>
+                    s.id === editId
+                        ? { ...s, instructors: (s.instructors || []).filter((i) => i.instructorId !== instructorId) }
+                        : s,
+                ),
+            );
+            setNotification({ type: 'success', message: 'Xóa giảng viên thành công' });
+            setTimeout(() => setNotification(null), 3000);
+        } catch (e: any) {
+            const statusCode = e?.response?.status;
+            let message = 'Xóa giảng viên thất bại';
+
+            if (statusCode === 404) {
+                message = 'Môn học hoặc giảng viên không tồn tại';
+            } else if (e?.message) {
+                message = e.message;
+            }
+            setNotification({ type: 'error', message });
+            setTimeout(() => setNotification(null), 5000);
+        }
+    };
+
 
     const handleCreate = async () => {
         if (!code.trim() || !name.trim()) {
@@ -305,7 +337,7 @@ export default function AdminSubjectsPage() {
             description: s.description || '',
             price: 0,
             originalPrice: 0,
-            assign: '',
+            assign: (s.instructors || []).map((i) => i.instructorName).join(', '),
         }));
     }, [subjects]);
 
@@ -357,7 +389,10 @@ export default function AdminSubjectsPage() {
                         onEdit={handleEdit}
                         onViewDetail={handleViewDetail}
                         assign={course.assign}
-                        onAssignInstructor={handleAssignInstructor}
+                        onAssignInstructor={(id) => {
+                            // Open edit modal directly for assignment within edit flow
+                            handleEdit(id);
+                        }}
                     />
                 ))}
             </div>
@@ -368,62 +403,135 @@ export default function AdminSubjectsPage() {
                         <h3 className="font-semibold text-[#333] text-xl">
                             {showCreate ? 'Create Subject' : 'Update Subject'}
                         </h3>
-                        <div className="space-y-4 mt-6">
-                            <div>
-                                <label className="block text-gray-700 text-sm">Code</label>
-                                <input
-                                    value={code}
-                                    onChange={(e) => setCode(e.target.value)}
-                                    className="mt-2 px-4 py-3 border rounded-lg w-full text-sm"
-                                    placeholder="KTPM101"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-gray-700 text-sm">Name</label>
-                                <input
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                    className="mt-2 px-4 py-3 border rounded-lg w-full text-sm"
-                                    placeholder="Kiến trúc phần mềm"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-gray-700 text-sm">Level</label>
-                                <select
-                                    value={level}
-                                    onChange={(e) => setLevel(e.target.value)}
-                                    className="mt-2 px-4 py-3 border rounded-lg w-full text-sm"
-                                >
-                                    <option value="Beginner">Beginner</option>
-                                    <option value="Elementary">Elementary</option>
-                                    <option value="Intermediate">Intermediate</option>
-                                    <option value="Advanced">Advanced</option>
-                                    <option value="Expert">Expert</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-gray-700 text-sm">Description</label>
-                                <input
-                                    value={description}
-                                    onChange={(e) => setDescription(e.target.value)}
-                                    className="mt-2 px-4 py-3 border rounded-lg w-full text-sm"
-                                    placeholder="Mô tả môn học"
-                                />
-                            </div>
-                            {!showCreate && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                            {/* Left column: basic info */}
+                            <div className="space-y-4">
                                 <div>
-                                    <label className="block text-gray-700 text-sm">Status</label>
+                                    <label className="block text-gray-700 text-sm">Code</label>
+                                    <input
+                                        value={code}
+                                        onChange={(e) => setCode(e.target.value)}
+                                        className="mt-2 px-4 py-3 border rounded-lg w-full text-sm"
+                                        placeholder="KTPM101"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-gray-700 text-sm">Name</label>
+                                    <input
+                                        value={name}
+                                        onChange={(e) => setName(e.target.value)}
+                                        className="mt-2 px-4 py-3 border rounded-lg w-full text-sm"
+                                        placeholder="Kiến trúc phần mềm"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-gray-700 text-sm">Level</label>
                                     <select
-                                        value={status}
-                                        onChange={(e) => setStatus(e.target.value as any)}
+                                        value={level}
+                                        onChange={(e) => setLevel(e.target.value)}
                                         className="mt-2 px-4 py-3 border rounded-lg w-full text-sm"
                                     >
-                                        <option value="">(unchanged)</option>
-                                        <option value="DRAFT">DRAFT</option>
-                                        <option value="ACTIVE">ACTIVE</option>
-                                        <option value="INACTIVE">INACTIVE</option>
-                                        <option value="ARCHIVED">ARCHIVED</option>
+                                        <option value="Beginner">Beginner</option>
+                                        <option value="Elementary">Elementary</option>
+                                        <option value="Intermediate">Intermediate</option>
+                                        <option value="Advanced">Advanced</option>
+                                        <option value="Expert">Expert</option>
                                     </select>
+                                </div>
+                                <div>
+                                    <label className="block text-gray-700 text-sm">Description</label>
+                                    <input
+                                        value={description}
+                                        onChange={(e) => setDescription(e.target.value)}
+                                        className="mt-2 px-4 py-3 border rounded-lg w-full text-sm"
+                                        placeholder="Mô tả môn học"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Right column: status + instructors */}
+                            {!showCreate && (
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-gray-700 text-sm">Status</label>
+                                        <select
+                                            value={status}
+                                            onChange={(e) =>
+                                                setStatus(
+                                                    e.target.value as 'DRAFT' | 'ACTIVE' | 'INACTIVE' | 'ARCHIVED' | '',
+                                                )
+                                            }
+                                            className="mt-2 px-4 py-3 border rounded-lg w-full text-sm"
+                                        >
+                                            <option value="">(unchanged)</option>
+                                            <option value="DRAFT">DRAFT</option>
+                                            <option value="ACTIVE">ACTIVE</option>
+                                            <option value="INACTIVE">INACTIVE</option>
+                                            <option value="ARCHIVED">ARCHIVED</option>
+                                        </select>
+                                    </div>
+
+                                    {/* Assigned Instructors */}
+                                    <div>
+                                        <label className="block text-gray-700 text-sm">Assigned Instructors</label>
+                                        <div className="mt-2 space-y-2">
+                                            {(subjects.find((s) => s.id === editId)?.instructors || []).length === 0 ? (
+                                                <p className="text-sm text-gray-500">Chưa có giảng viên nào</p>
+                                            ) : (
+                                                <ul className="divide-y divide-gray-100 border rounded-lg">
+                                                    {(subjects.find((s) => s.id === editId)?.instructors || []).map((i) => (
+                                                        <li
+                                                            key={i.instructorId}
+                                                            className="flex items-center justify-between px-4 py-2"
+                                                        >
+                                                            <span className="text-sm text-gray-700">{i.instructorName}</span>
+                                                            <button
+                                                                onClick={() => removeInstructorFromSubject(i.instructorId)}
+                                                                className="text-red-600 hover:bg-red-50 px-3 py-1 rounded-full text-sm"
+                                                            >
+                                                                Xóa
+                                                            </button>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Add Instructor */}
+                                    <div>
+                                        <label className="block text-gray-700 text-sm">Thêm Giảng Viên</label>
+                                        {loadingInstructors ? (
+                                            <p className="mt-2 text-gray-500 text-sm">Đang tải danh sách giảng viên...</p>
+                                        ) : (
+                                            <div className="flex gap-3 mt-2">
+                                                <select
+                                                    value={instructorSelectId}
+                                                    onChange={(e) => setInstructorSelectId(e.target.value)}
+                                                    className="px-4 py-3 border rounded-lg w-full text-sm"
+                                                >
+                                                    <option value="">-- Chọn giảng viên --</option>
+                                                    {instructorOptions
+                                                        .filter((opt) =>
+                                                            !(subjects.find((s) => s.id === editId)?.instructors || []).some(
+                                                                (a) => a.instructorId === opt.id,
+                                                            ),
+                                                        )
+                                                        .map((instructor) => (
+                                                            <option key={instructor.id} value={instructor.id.toString()}>
+                                                                {instructor.fullName} ({instructor.email})
+                                                            </option>
+                                                        ))}
+                                                </select>
+                                                <button
+                                                    onClick={addInstructorToSubject}
+                                                    className="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded-lg text-white text-sm"
+                                                >
+                                                    Thêm
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -469,7 +577,6 @@ export default function AdminSubjectsPage() {
                             <button
                                 onClick={() => {
                                     setDeleteId(null);
-                                    setDeleteReason('');
                                 }}
                                 className="px-4 py-2 border rounded-full text-sm"
                             >
@@ -486,54 +593,6 @@ export default function AdminSubjectsPage() {
                 </div>
             )}
 
-            {/* Assign Instructor modal */}
-            {assignModalOpen && (
-                <div className="fixed inset-0 flex justify-center items-center bg-black/30 p-4">
-                    <div className="bg-white shadow-xl p-6 rounded-xl w-[520px]">
-                        <h3 className="font-semibold text-[#333] text-xl">Gán Giảng Viên</h3>
-                        <p className="mt-2 text-gray-600 text-sm">Chọn giảng viên muốn gán cho môn học</p>
-
-                        <div className="mt-4">
-                            <label className="block text-gray-700 text-sm">Giảng Viên</label>
-                            {loadingInstructors ? (
-                                <p className="mt-2 text-gray-500 text-sm">Đang tải danh sách giảng viên...</p>
-                            ) : (
-                                <select
-                                    value={instructorId}
-                                    onChange={(e) => setInstructorId(e.target.value)}
-                                    className="mt-2 px-4 py-3 border rounded-lg w-full text-sm"
-                                >
-                                    <option value="">-- Chọn giảng viên --</option>
-                                    {instructors.map((instructor) => (
-                                        <option key={instructor.id} value={instructor.id.toString()}>
-                                            {instructor.fullName} ({instructor.email})
-                                        </option>
-                                    ))}
-                                </select>
-                            )}
-                        </div>
-
-                        <div className="flex justify-end gap-3 mt-6">
-                            <button
-                                onClick={() => {
-                                    setAssignModalOpen(false);
-                                    setAssignSubjectId(null);
-                                    setInstructorId('');
-                                }}
-                                className="px-4 py-2 border rounded-full text-sm"
-                            >
-                                Hủy
-                            </button>
-                            <button
-                                onClick={confirmAssignInstructor}
-                                className="bg-blue-500 px-5 py-2 rounded-full text-white text-sm"
-                            >
-                                Gán
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
             {/* Pagination */}
             <div className="flex justify-center pt-6 w-full">
                 <Pagination>

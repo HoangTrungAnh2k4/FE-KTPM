@@ -79,3 +79,10 @@ export async function assignInstructorApi(subjectId: number, payload: { instruct
     const res = await axiosInstance.post(`/api/admin/subjects/${subjectId}/instructors`, payload);
     return res.data;
 }
+
+export async function removeInstructorApi(subjectId: number, instructorId: number) {
+    const res = await axiosInstance.delete(
+        `/api/admin/subjects/${subjectId}/instructors/${instructorId}`,
+    );
+    return res.data;
+}

@@ -91,14 +91,14 @@ const Header: React.FC = () => {
                             <DropdownMenuLabel>My Account</DropdownMenuLabel>
 
                             <DropdownMenuSeparator className="bg-neutral-500" />
-                            {/* <DropdownMenuItem
+                            <DropdownMenuItem
                                 className="hover:bg-background/50 cursor-pointer"
                                 onClick={() => {
                                     router.push('/profile');
                                 }}
                             >
                                 <FaUser /> Tài khoản
-                            </DropdownMenuItem> */}
+                            </DropdownMenuItem>
 
                             <DropdownMenuItem onSelect={handleLogout} className="hover:bg-background/50 cursor-pointer">
                                 <FaSignOutAlt className="" />

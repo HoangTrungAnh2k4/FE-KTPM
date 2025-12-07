@@ -71,6 +71,8 @@ export async function middleware(req: NextRequest) {
                         name: userData.fullName,
                         avatar: 'https://www.rophim.li/images/avatars/pack1/14.jpg',
                         role,
+                        phone: userData.phone,
+                        age: userData.age,
                     }),
                     {
                         httpOnly: false,
@@ -107,5 +109,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-    matcher: ['/', '/admin/:path*', '/instructor/:path*', '/subject/:path*'],
+    matcher: ['/', '/admin/:path*', '/instructor/:path*', '/subject/:path*', '/profile/:path*'],
 };

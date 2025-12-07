@@ -4,7 +4,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
-import { registerApi } from '@/api/authApi';
+import { registerApi, verifyEmailApi, sendCodeVerifyEmailApi } from '@/api/authApi';
 
 export default function RegisterPage() {
     const router = useRouter();
@@ -19,6 +19,9 @@ export default function RegisterPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+    const [showVerification, setShowVerification] = useState(false);
+    const [verificationCode, setVerificationCode] = useState('');
+    const [verifyLoading, setVerifyLoading] = useState(false);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -51,12 +54,45 @@ export default function RegisterPage() {
             });
 
             if (response.status === 201 || response.status === 200) {
-                router.push('/login');
+                // Show verification form after successful registration
+                setShowVerification(true);
+                setError(null);
             }
         } catch (err: any) {
             setError(err.response?.data?.message || 'Đăng ký thất bại. Vui lòng thử lại.');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleVerifyEmail = async () => {
+        if (!verificationCode) {
+            setError('Please enter the verification code.');
+            return;
+        }
+
+        setVerifyLoading(true);
+        setError(null);
+        try {
+            const res = await verifyEmailApi(formData.email, verificationCode);
+            if (res.status === 200) {
+                // Redirect to login after successful verification
+                router.push('/login');
+            }
+        } catch (err: any) {
+            setError(err.response?.data?.message || 'Verification failed. Please try again.');
+        } finally {
+            setVerifyLoading(false);
+        }
+    };
+
+    const handleResendCode = async () => {
+        setError(null);
+        try {
+            await sendCodeVerifyEmailApi(formData.email);
+            setError('Verification code has been resent. Please check your email.');
+        } catch (err: any) {
+            setError(err.response?.data?.message || 'Failed to send code. Please try again.');
         }
     };
 
@@ -75,104 +111,174 @@ export default function RegisterPage() {
                     <div className="mx-auto w-full max-w-md">
                         <p className="mb-4 font-semibold text-neutral-600 text-3xl text-center">Create Account</p>
 
-                        <form onSubmit={handleSubmit} className="space-y-2 mt-6">
-                            <div>
-                                <label className="block font-medium text-neutral-700 text-sm">Full Name</label>
-                                <div className="mt-2">
-                                    <input
-                                        type="text"
-                                        name="fullName"
-                                        value={formData.fullName}
-                                        onChange={handleChange}
-                                        className="px-4 py-3 border rounded-full outline-none w-full text-sm"
-                                        placeholder="Enter your full name"
-                                        aria-label="fullName"
-                                    />
+                        {!showVerification ? (
+                            <form onSubmit={handleSubmit} className="space-y-2 mt-6">
+                                <div>
+                                    <label className="block font-medium text-neutral-700 text-sm">Full Name</label>
+                                    <div className="mt-2">
+                                        <input
+                                            type="text"
+                                            name="fullName"
+                                            value={formData.fullName}
+                                            onChange={handleChange}
+                                            className="px-4 py-3 border rounded-full outline-none w-full text-sm"
+                                            placeholder="Enter your full name"
+                                            aria-label="fullName"
+                                        />
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div>
-                                <label className="block font-medium text-neutral-700 text-sm">Email</label>
-                                <div className="mt-2">
-                                    <input
-                                        type="email"
-                                        name="email"
-                                        value={formData.email}
-                                        onChange={handleChange}
-                                        className="px-4 py-3 border rounded-full outline-none w-full text-sm"
-                                        placeholder="Enter your email"
-                                        aria-label="email"
-                                    />
+                                <div>
+                                    <label className="block font-medium text-neutral-700 text-sm">Email</label>
+                                    <div className="mt-2">
+                                        <input
+                                            type="email"
+                                            name="email"
+                                            value={formData.email}
+                                            onChange={handleChange}
+                                            className="px-4 py-3 border rounded-full outline-none w-full text-sm"
+                                            placeholder="Enter your email"
+                                            aria-label="email"
+                                        />
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div>
-                                <label className="block font-medium text-neutral-700 text-sm">Phone</label>
-                                <div className="mt-2">
-                                    <input
-                                        type="tel"
-                                        name="phone"
-                                        value={formData.phone}
-                                        onChange={handleChange}
-                                        className="px-4 py-3 border rounded-full outline-none w-full text-sm"
-                                        placeholder="Enter your phone number"
-                                        aria-label="phone"
-                                    />
+                                <div>
+                                    <label className="block font-medium text-neutral-700 text-sm">Phone</label>
+                                    <div className="mt-2">
+                                        <input
+                                            type="tel"
+                                            name="phone"
+                                            value={formData.phone}
+                                            onChange={handleChange}
+                                            className="px-4 py-3 border rounded-full outline-none w-full text-sm"
+                                            placeholder="Enter your phone number"
+                                            aria-label="phone"
+                                        />
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div>
-                                <label className="block font-medium text-neutral-700 text-sm">Age</label>
-                                <div className="mt-2">
-                                    <input
-                                        type="number"
-                                        name="age"
-                                        value={formData.age}
-                                        onChange={handleChange}
-                                        className="px-4 py-3 border rounded-full outline-none w-full text-sm"
-                                        placeholder="Enter your age"
-                                        aria-label="age"
-                                        min="1"
-                                    />
+                                <div>
+                                    <label className="block font-medium text-neutral-700 text-sm">Age</label>
+                                    <div className="mt-2">
+                                        <input
+                                            type="number"
+                                            name="age"
+                                            value={formData.age}
+                                            onChange={handleChange}
+                                            className="px-4 py-3 border rounded-full outline-none w-full text-sm"
+                                            placeholder="Enter your age"
+                                            aria-label="age"
+                                            min="1"
+                                        />
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div>
-                                <label className="block font-medium text-neutral-700 text-sm">Password</label>
-                                <div className="relative mt-2">
-                                    <input
-                                        type={showPassword ? 'text' : 'password'}
-                                        name="password"
-                                        value={formData.password}
-                                        onChange={handleChange}
-                                        className="px-4 py-3 pr-10 border rounded-full outline-none w-full text-sm"
-                                        placeholder="Enter your password"
-                                        aria-label="password"
-                                    />
+                                <div>
+                                    <label className="block font-medium text-neutral-700 text-sm">Password</label>
+                                    <div className="relative mt-2">
+                                        <input
+                                            type={showPassword ? 'text' : 'password'}
+                                            name="password"
+                                            value={formData.password}
+                                            onChange={handleChange}
+                                            className="px-4 py-3 pr-10 border rounded-full outline-none w-full text-sm"
+                                            placeholder="Enter your password"
+                                            aria-label="password"
+                                        />
 
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword((s) => !s)}
+                                            className="top-1/2 right-3 absolute text-neutral-600 -translate-y-1/2"
+                                            aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                        >
+                                            {showPassword ? <FaEye /> : <FaEyeSlash />}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {error && <p className="text-red-500 text-sm">{error}</p>}
+
+                                <div className="pt-4">
                                     <button
-                                        type="button"
-                                        onClick={() => setShowPassword((s) => !s)}
-                                        className="top-1/2 right-3 absolute text-neutral-600 -translate-y-1/2"
-                                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                        type="submit"
+                                        disabled={loading}
+                                        className="bg-teal-400 hover:bg-teal-500 disabled:bg-teal-300 shadow-sm py-3 rounded-full w-full font-medium text-white text-sm"
                                     >
-                                        {showPassword ? <FaEye /> : <FaEyeSlash />}
+                                        {loading ? 'Registering...' : 'Register'}
                                     </button>
                                 </div>
-                            </div>
 
-                            {error && <p className="text-red-500 text-sm">{error}</p>}
+                                <p className="mt-4 text-center">
+                                    Already have an account?{' '}
+                                    <a href="/login" className="text-teal-500 hover:underline">
+                                        Login
+                                    </a>
+                                </p>
+                            </form>
+                        ) : (
+                            <form
+                                onSubmit={(e) => {
+                                    e.preventDefault();
+                                    handleVerifyEmail();
+                                }}
+                                className="space-y-6 mt-6"
+                            >
+                                <div>
+                                    <p className="mb-4 text-neutral-600 text-sm text-center">
+                                        A verification code has been sent to <strong>{formData.email}</strong>. Please
+                                        check your email.
+                                    </p>
+                                    <label className="block font-medium text-neutral-700 text-sm">
+                                        Verification Code
+                                    </label>
+                                    <div className="mt-2">
+                                        <input
+                                            type="text"
+                                            value={verificationCode}
+                                            onChange={(e) => setVerificationCode(e.target.value)}
+                                            className="px-4 py-3 border rounded-full outline-none w-full text-sm"
+                                            placeholder="Enter verification code from email"
+                                            aria-label="verification code"
+                                        />
+                                    </div>
+                                </div>
 
-                            <div className="pt-4">
-                                <button
-                                    type="submit"
-                                    disabled={loading}
-                                    className="bg-teal-400 hover:bg-teal-500 disabled:bg-teal-300 shadow-sm py-3 rounded-full w-full font-medium text-white text-sm"
-                                >
-                                    {loading ? 'Registering...' : 'Register'}
-                                </button>
-                            </div>
-                        </form>
+                                {error && <p className="text-red-500 text-sm">{error}</p>}
+
+                                <div className="pt-4">
+                                    <button
+                                        type="submit"
+                                        disabled={verifyLoading}
+                                        className="bg-teal-400 hover:bg-teal-500 disabled:opacity-50 shadow-sm py-3 rounded-full w-full font-medium text-white text-sm disabled:cursor-not-allowed"
+                                    >
+                                        {verifyLoading ? 'Verifying...' : 'Verify'}
+                                    </button>
+                                </div>
+
+                                <div className="flex justify-between items-center">
+                                    <button
+                                        type="button"
+                                        onClick={handleResendCode}
+                                        className="text-teal-500 text-sm hover:underline"
+                                    >
+                                        Resend Code
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowVerification(false);
+                                            setVerificationCode('');
+                                            setError(null);
+                                        }}
+                                        className="text-neutral-500 text-sm hover:underline"
+                                    >
+                                        Back to Register
+                                    </button>
+                                </div>
+                            </form>
+                        )}
                     </div>
                 </div>
             </div>

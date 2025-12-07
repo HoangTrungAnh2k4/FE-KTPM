@@ -22,3 +22,13 @@ export async function registerApi(data: {
 
     return res.data;
 }
+
+export async function sendCodeVerifyEmailApi(email: string) {
+    const res = await axios.post(`${API_BACKEND_URL}/auth/verify/resend?email=${email}`);
+    return res.data;
+}
+
+export async function verifyEmailApi(email: string, code: string) {
+    const res = await axios.post(`${API_BACKEND_URL}/auth/verify?email=${email}&code=${code}`);
+    return res.data;
+}

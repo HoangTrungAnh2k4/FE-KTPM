@@ -27,13 +27,16 @@ export async function createSubjectApi(payload: {
     return res.data;
 }
 
-export async function updateSubjectApi(id: number, payload: {
-    code: string;
-    name: string;
-    level: string;
-    description?: string;
-    status?: 'ACTIVE' | 'INACTIVE' | 'ARCHIVED';
-}) {
+export async function updateSubjectApi(
+    id: number,
+    payload: {
+        code: string;
+        name: string;
+        level: string;
+        description?: string;
+        status?: 'ACTIVE' | 'INACTIVE' | 'ARCHIVED' | 'DRAFT';
+    },
+) {
     const res = await axiosInstance.put(`/api/admin/subjects/${id}`, payload);
     return res.data;
 }
@@ -43,25 +46,36 @@ export async function deleteSubjectApi(id: number) {
     return res.data;
 }
 
-export async function addTopicApi(subjectId: number, payload: {
-    title: string;
-    description?: string;
-    orderIndex?: number;
-}) {
+export async function addTopicApi(
+    subjectId: number,
+    payload: {
+        title: string;
+        description?: string;
+        orderIndex?: number;
+    },
+) {
     const res = await axiosInstance.post(`/api/admin/subjects/${subjectId}/topics`, payload);
     return res.data;
 }
 
-export async function updateTopicApi(topicId: number, payload: {
-    title: string;
-    description?: string;
-    orderIndex?: number;
-}) {
+export async function updateTopicApi(
+    topicId: number,
+    payload: {
+        title: string;
+        description?: string;
+        orderIndex?: number;
+    },
+) {
     const res = await axiosInstance.put(`/api/admin/subjects/topics/${topicId}`, payload);
     return res.data;
 }
 
 export async function deleteTopicApi(topicId: number) {
     const res = await axiosInstance.delete(`/api/admin/subjects/topics/${topicId}`);
+    return res.data;
+}
+
+export async function assignInstructorApi(subjectId: number, payload: { instructorId: number }) {
+    const res = await axiosInstance.post(`/api/admin/subjects/${subjectId}/instructors`, payload);
     return res.data;
 }

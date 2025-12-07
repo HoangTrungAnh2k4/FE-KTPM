@@ -54,7 +54,7 @@ export function DataTable<TData, TValue>({
 
     return (
         <div className="pb-6">
-            <div className="border rounded-md overflow-hidden">
+            <div className="mb-6 border rounded-md overflow-hidden">
                 <Table>
                     <TableHeader>
                         {table.getHeaderGroups().map((headerGroup) => (
@@ -93,7 +93,7 @@ export function DataTable<TData, TValue>({
                 </Table>
             </div>
             {typeof currentPage !== 'number' ? (
-                <Pagination className="mt-6">
+                <Pagination>
                     <PaginationContent>
                         <PaginationItem>
                             <PaginationPrevious href="#" />
@@ -119,7 +119,7 @@ export function DataTable<TData, TValue>({
                 </Pagination>
             ) : (
                 // Controlled pagination UI
-                <Pagination className="mt-6">
+                <Pagination>
                     <PaginationContent>
                         <PaginationItem>
                             <PaginationPrevious

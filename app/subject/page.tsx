@@ -29,7 +29,8 @@ export default function SubjectPage() {
         setError(null);
         try {
             const data = await getAllSubjectApi(page, size);
-            const payload: any = data && typeof data === 'object' && 'data' in (data as any) ? (data as any).data : data;
+            const payload: any =
+                data && typeof data === 'object' && 'data' in (data as any) ? (data as any).data : data;
             const items: Subject[] = Array.isArray(payload?.items)
                 ? payload.items
                 : Array.isArray(payload?.content)
@@ -69,7 +70,7 @@ export default function SubjectPage() {
 
     return (
         <div className="px-8 py-4">
-            <SubjectFilter total={totalElements} />
+            {/* <SubjectFilter total={totalElements} /> */}
 
             <div className="flex justify-between items-center mt-8">
                 <p className="font-semibold text-[#333] text-xl">Subjects</p>

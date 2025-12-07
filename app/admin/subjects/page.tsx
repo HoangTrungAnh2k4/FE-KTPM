@@ -8,7 +8,9 @@ import {
     createSubjectApi,
     updateSubjectApi,
     deleteSubjectApi,
+    assignInstructorApi,
 } from '@/api/SubjectApi';
+import { getListUsersApi } from '@/api/userApi';
 import {
     Pagination,
     PaginationContent,
@@ -17,8 +19,7 @@ import {
     PaginationLink,
     PaginationNext,
     PaginationPrevious,
-} from "@/components/UI/pagination"
-
+} from '@/components/UI/pagination';
 
 type Subject = {
     id: number;
@@ -26,7 +27,14 @@ type Subject = {
     name: string;
     level: string;
     description?: string;
-    status?: 'ACTIVE' | 'INACTIVE' | 'ARCHIVED';
+    status?: 'DRAFT' | 'ACTIVE' | 'INACTIVE' | 'ARCHIVED';
+};
+
+type Instructor = {
+    id: number;
+    fullName: string;
+    email: string;
+    roles?: string[];
 };
 
 export default function AdminSubjectsPage() {
@@ -39,9 +47,19 @@ export default function AdminSubjectsPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // Notification state
+    const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
     // Delete confirmation modal state
     const [deleteId, setDeleteId] = useState<number | null>(null);
     const [deleteReason, setDeleteReason] = useState('');
+
+    // Assign instructor modal state
+    const [assignModalOpen, setAssignModalOpen] = useState(false);
+    const [assignSubjectId, setAssignSubjectId] = useState<number | null>(null);
+    const [instructorId, setInstructorId] = useState('');
+    const [instructors, setInstructors] = useState<Instructor[]>([]);
+    const [loadingInstructors, setLoadingInstructors] = useState(false);
 
     // Form state mapped to API payload
     const [showCreate, setShowCreate] = useState(false);
@@ -67,7 +85,8 @@ export default function AdminSubjectsPage() {
             const data = await getAllSubjectApi(page, size);
             // Normalize to handle shape: { status, message, data: { items, ... } }
             console.log('API response data:', data);
-            const payload: any = data && typeof data === 'object' && 'data' in (data as any) ? (data as any).data : data;
+            const payload: any =
+                data && typeof data === 'object' && 'data' in (data as any) ? (data as any).data : data;
             const items: Subject[] = Array.isArray(payload?.items)
                 ? payload.items
                 : Array.isArray(payload?.content)
@@ -107,9 +126,22 @@ export default function AdminSubjectsPage() {
             setSubjects((prev) => prev.filter((s) => s.id !== deleteId));
             setDeleteId(null);
             setDeleteReason('');
+            setNotification({ type: 'success', message: 'Xóa môn học thành công' });
+            setTimeout(() => setNotification(null), 3000);
         } catch (e: any) {
-            // Show lightweight inline error (no alert)
-            setError(e?.message || 'Xóa môn học thất bại');
+            const statusCode = e?.response?.status;
+            let message = 'Xóa môn học thất bại';
+
+            if (statusCode === 404) {
+                message = 'Môn học không tồn tại';
+            } else if (statusCode === 409) {
+                message = 'Không thể xóa, môn học đang được sử dụng';
+            } else if (e?.message) {
+                message = e.message;
+            }
+
+            setNotification({ type: 'error', message });
+            setTimeout(() => setNotification(null), 5000);
         }
     };
 
@@ -129,8 +161,74 @@ export default function AdminSubjectsPage() {
         router.push(`/admin/subjects/${id}`);
     };
 
+    const handleAssignInstructor = async (id: number) => {
+        setAssignSubjectId(id);
+        setInstructorId('');
+        setAssignModalOpen(true);
+
+        // Load instructors list
+        setLoadingInstructors(true);
+        try {
+            const data = await getListUsersApi({ page: 0, size: 1000 });
+            const payload: any =
+                data && typeof data === 'object' && 'data' in (data as any) ? (data as any).data : data;
+            const users: any[] = Array.isArray(payload?.items)
+                ? payload.items
+                : Array.isArray(payload?.content)
+                ? payload.content
+                : Array.isArray(payload)
+                ? payload
+                : [];
+
+            // Filter instructors (users with 'INSTRUCTOR' role)
+            const instructorsList = users.filter(
+                (user: any) => user.roles && Array.isArray(user.roles) && user.roles.includes('INSTRUCTOR'),
+            );
+            setInstructors(instructorsList);
+        } catch (e: any) {
+            console.error('Error loading instructors:', e);
+            setInstructors([]);
+        } finally {
+            setLoadingInstructors(false);
+        }
+    };
+
+    const confirmAssignInstructor = async () => {
+        if (assignSubjectId == null || !instructorId.trim()) {
+            setNotification({ type: 'error', message: 'Vui lòng chọn giảng viên' });
+            return;
+        }
+        try {
+            await assignInstructorApi(assignSubjectId, { instructorId: Number(instructorId) });
+            setAssignModalOpen(false);
+            setAssignSubjectId(null);
+            setInstructorId('');
+            setNotification({ type: 'success', message: 'Gán giảng viên thành công' });
+            setTimeout(() => setNotification(null), 3000);
+        } catch (e: any) {
+            const statusCode = e?.response?.status;
+            let message = 'Gán giảng viên thất bại';
+
+            if (statusCode === 409) {
+                message = 'Giảng viên này đã được gán cho môn học rồi';
+            } else if (statusCode === 404) {
+                message = 'Môn học hoặc giảng viên không tồn tại';
+            } else if (statusCode === 400) {
+                message = 'Dữ liệu không hợp lệ';
+            } else if (e?.message) {
+                message = e.message;
+            }
+
+            setNotification({ type: 'error', message });
+            setTimeout(() => setNotification(null), 5000);
+        }
+    };
+
     const handleCreate = async () => {
-        if (!code.trim() || !name.trim()) return alert('Vui lòng nhập Code và Name');
+        if (!code.trim() || !name.trim()) {
+            setNotification({ type: 'error', message: 'Vui lòng nhập Code và Name' });
+            return;
+        }
         try {
             const res = await createSubjectApi({ code, name, level, description });
             const created: Subject = res?.data || res; // backend may wrap in {data}
@@ -143,22 +241,55 @@ export default function AdminSubjectsPage() {
             }
             setShowCreate(false);
             resetForm();
+            setNotification({ type: 'success', message: 'Tạo môn học thành công' });
+            setTimeout(() => setNotification(null), 3000);
         } catch (e: any) {
-            alert(e?.message || 'Tạo môn học thất bại');
+            const statusCode = e?.response?.status;
+            let message = 'Tạo môn học thất bại';
+
+            if (statusCode === 400) {
+                message = 'Dữ liệu không hợp lệ';
+            } else if (statusCode === 409) {
+                message = 'Môn học đã tồn tại';
+            } else if (e?.message) {
+                message = e.message;
+            }
+
+            setNotification({ type: 'error', message });
+            setTimeout(() => setNotification(null), 5000);
         }
     };
 
     const handleUpdate = async () => {
         if (editId == null) return;
-        if (!code.trim() || !name.trim()) return alert('Vui lòng nhập Code và Name');
+        if (!code.trim() || !name.trim()) {
+            setNotification({ type: 'error', message: 'Vui lòng nhập Code và Name' });
+            return;
+        }
         try {
             const res = await updateSubjectApi(editId, { code, name, level, description, status: status || undefined });
             const updated: Subject = res?.data || res;
             setSubjects((prev) => prev.map((s) => (s.id === editId ? { ...s, ...updated } : s)));
             setEditId(null);
             resetForm();
+            setNotification({ type: 'success', message: 'Cập nhật môn học thành công' });
+            setTimeout(() => setNotification(null), 3000);
         } catch (e: any) {
-            alert(e?.message || 'Cập nhật môn học thất bại');
+            const statusCode = e?.response?.status;
+            let message = 'Cập nhật môn học thất bại';
+
+            if (statusCode === 400) {
+                message = 'Dữ liệu không hợp lệ';
+            } else if (statusCode === 404) {
+                message = 'Môn học không tồn tại';
+            } else if (statusCode === 409) {
+                message = 'Dữ liệu bị xung đột, vui lòng tải lại';
+            } else if (e?.message) {
+                message = e.message;
+            }
+
+            setNotification({ type: 'error', message });
+            setTimeout(() => setNotification(null), 5000);
         }
     };
 
@@ -179,8 +310,8 @@ export default function AdminSubjectsPage() {
     }, [subjects]);
 
     return (
-        <div className="px-12 py-8 bg-[#f5f5f5] min-h-screen">
-            <div className="mb-6 flex items-center justify-between">
+        <div className="bg-[#f5f5f5] px-12 py-8 min-h-screen">
+            <div className="flex justify-between items-center mb-6">
                 <h2 className="font-semibold text-[#333] text-2xl">Subjects Management</h2>
                 <div className="flex items-center gap-3">
                     <button
@@ -189,16 +320,26 @@ export default function AdminSubjectsPage() {
                             setEditId(null);
                             setShowCreate(true);
                         }}
-                        className="bg-[#4ECDC4] hover:opacity-90 px-4 py-2 rounded-full text-white text-sm"
+                        className="bg-[#35aba3] hover:bg-[#2d8b85] px-4 py-2 rounded-full font-semibold text-white text-sm cursor-pointer"
                     >
                         Create Subject
                     </button>
-                   
                 </div>
             </div>
 
             {loading && <p>Đang tải...</p>}
             {error && <p className="text-red-600">{error}</p>}
+
+            {/* Notification Toast */}
+            {notification && (
+                <div
+                    className={`fixed top-4 right-4 px-6 py-3 rounded-lg text-white text-sm font-medium shadow-lg animate-pulse ${
+                        notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'
+                    }`}
+                >
+                    {notification.message}
+                </div>
+            )}
 
             <div className="gap-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                 {cards.map((course) => (
@@ -216,19 +357,20 @@ export default function AdminSubjectsPage() {
                         onEdit={handleEdit}
                         onViewDetail={handleViewDetail}
                         assign={course.assign}
+                        onAssignInstructor={handleAssignInstructor}
                     />
                 ))}
             </div>
 
             {(showCreate || editId !== null) && (
-                <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4">
+                <div className="fixed inset-0 flex justify-center items-center bg-black/30 p-4">
                     <div className="bg-white shadow-xl p-6 rounded-xl w-[720px]">
-                        <h3 className="font-semibold text-xl text-[#333]">
+                        <h3 className="font-semibold text-[#333] text-xl">
                             {showCreate ? 'Create Subject' : 'Update Subject'}
                         </h3>
-                        <div className="mt-6 space-y-4">
+                        <div className="space-y-4 mt-6">
                             <div>
-                                <label className="block text-sm text-gray-700">Code</label>
+                                <label className="block text-gray-700 text-sm">Code</label>
                                 <input
                                     value={code}
                                     onChange={(e) => setCode(e.target.value)}
@@ -237,7 +379,7 @@ export default function AdminSubjectsPage() {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm text-gray-700">Name</label>
+                                <label className="block text-gray-700 text-sm">Name</label>
                                 <input
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
@@ -246,7 +388,7 @@ export default function AdminSubjectsPage() {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm text-gray-700">Level</label>
+                                <label className="block text-gray-700 text-sm">Level</label>
                                 <select
                                     value={level}
                                     onChange={(e) => setLevel(e.target.value)}
@@ -260,7 +402,7 @@ export default function AdminSubjectsPage() {
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-sm text-gray-700">Description</label>
+                                <label className="block text-gray-700 text-sm">Description</label>
                                 <input
                                     value={description}
                                     onChange={(e) => setDescription(e.target.value)}
@@ -270,7 +412,7 @@ export default function AdminSubjectsPage() {
                             </div>
                             {!showCreate && (
                                 <div>
-                                    <label className="block text-sm text-gray-700">Status</label>
+                                    <label className="block text-gray-700 text-sm">Status</label>
                                     <select
                                         value={status}
                                         onChange={(e) => setStatus(e.target.value as any)}
@@ -293,16 +435,22 @@ export default function AdminSubjectsPage() {
                                     setEditId(null);
                                     resetForm();
                                 }}
-                                className="border px-4 py-2 rounded-full text-sm"
+                                className="hover:bg-gray-50 px-4 py-2 border rounded-full text-sm cursor-pointer"
                             >
                                 Cancel
                             </button>
                             {showCreate ? (
-                                <button onClick={handleCreate} className="bg-[#4ECDC4] px-5 py-2 rounded-full text-white text-sm">
+                                <button
+                                    onClick={handleCreate}
+                                    className="bg-[#35aba3] hover:bg-[#2d8b85] px-4 py-2 rounded-full font-semibold text-white text-sm cursor-pointer"
+                                >
                                     Create
                                 </button>
                             ) : (
-                                <button onClick={handleUpdate} className="bg-[#4ECDC4] px-5 py-2 rounded-full text-white text-sm">
+                                <button
+                                    onClick={handleUpdate}
+                                    className="bg-[#35aba3] hover:bg-[#2d8b85] px-4 py-2 rounded-full font-semibold text-white text-sm cursor-pointer"
+                                >
                                     Update
                                 </button>
                             )}
@@ -312,57 +460,116 @@ export default function AdminSubjectsPage() {
             )}
             {/* Delete confirmation modal */}
             {deleteId !== null && (
-                <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4">
+                <div className="fixed inset-0 flex justify-center items-center bg-black/30 p-4">
                     <div className="bg-white shadow-xl p-6 rounded-xl w-[520px]">
-                        <h3 className="font-semibold text-xl text-[#333]">Xóa môn học</h3>
-                        <p className="mt-2 text-sm text-gray-600">Bạn có chắc chắn muốn xóa môn học này?</p>
-                        
+                        <h3 className="font-semibold text-[#333] text-xl">Xóa môn học</h3>
+                        <p className="mt-2 text-gray-600 text-sm">Bạn có chắc chắn muốn xóa môn học này?</p>
+
                         <div className="flex justify-end gap-3 mt-6">
-                            <button onClick={() => { setDeleteId(null); setDeleteReason(''); }} className="border px-4 py-2 rounded-full text-sm">Hủy</button>
-                            <button onClick={confirmDelete} className="bg-red-500 px-5 py-2 rounded-full text-white text-sm">Xóa</button>
+                            <button
+                                onClick={() => {
+                                    setDeleteId(null);
+                                    setDeleteReason('');
+                                }}
+                                className="px-4 py-2 border rounded-full text-sm"
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                onClick={confirmDelete}
+                                className="bg-red-500 px-5 py-2 rounded-full text-white text-sm"
+                            >
+                                Xóa
+                            </button>
                         </div>
                     </div>
                 </div>
             )}
-                        {/* Pagination */}
-                        <div className="flex justify-center pt-6 w-full">
-                                <Pagination>
-                                        <PaginationContent>
-                                                <PaginationItem>
-                                                        <PaginationPrevious
-                                                                
-                                                                onClick={(e) => {
-                                                                        e.preventDefault();
-                                                                        setPage((p) => Math.max(0, p - 1));
-                                                                }}
-                                                        />
-                                                </PaginationItem>
-                                                {Array.from({ length: totalPages <=5 ? totalPages : 5 }).map((_, i) => (
-                                                        <PaginationItem key={i}>
-                                                                <PaginationLink
-                                                                        
-                                                                        isActive={i === page}
-                                                                        onClick={(e) => {
-                                                                                e.preventDefault();
-                                                                                setPage(i);
-                                                                        }}
-                                                                >
-                                                                        {i + 1}
-                                                                </PaginationLink>
-                                                        </PaginationItem>
-                                                ))}
-                                                <PaginationItem>
-                                                        <PaginationNext
-                                                                
-                                                                onClick={(e) => {
-                                                                        e.preventDefault();
-                                                                        setPage((p) => (p + 1 < totalPages ? p + 1 : p));
-                                                                }}
-                                                        />
-                                                </PaginationItem>
-                                        </PaginationContent>
-                                </Pagination>
+
+            {/* Assign Instructor modal */}
+            {assignModalOpen && (
+                <div className="fixed inset-0 flex justify-center items-center bg-black/30 p-4">
+                    <div className="bg-white shadow-xl p-6 rounded-xl w-[520px]">
+                        <h3 className="font-semibold text-[#333] text-xl">Gán Giảng Viên</h3>
+                        <p className="mt-2 text-gray-600 text-sm">Chọn giảng viên muốn gán cho môn học</p>
+
+                        <div className="mt-4">
+                            <label className="block text-gray-700 text-sm">Giảng Viên</label>
+                            {loadingInstructors ? (
+                                <p className="mt-2 text-gray-500 text-sm">Đang tải danh sách giảng viên...</p>
+                            ) : (
+                                <select
+                                    value={instructorId}
+                                    onChange={(e) => setInstructorId(e.target.value)}
+                                    className="mt-2 px-4 py-3 border rounded-lg w-full text-sm"
+                                >
+                                    <option value="">-- Chọn giảng viên --</option>
+                                    {instructors.map((instructor) => (
+                                        <option key={instructor.id} value={instructor.id.toString()}>
+                                            {instructor.fullName} ({instructor.email})
+                                        </option>
+                                    ))}
+                                </select>
+                            )}
                         </div>
+
+                        <div className="flex justify-end gap-3 mt-6">
+                            <button
+                                onClick={() => {
+                                    setAssignModalOpen(false);
+                                    setAssignSubjectId(null);
+                                    setInstructorId('');
+                                }}
+                                className="px-4 py-2 border rounded-full text-sm"
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                onClick={confirmAssignInstructor}
+                                className="bg-blue-500 px-5 py-2 rounded-full text-white text-sm"
+                            >
+                                Gán
+                            </button>
+                        </div>
+                    </div>
                 </div>
-        );
+            )}
+            {/* Pagination */}
+            <div className="flex justify-center pt-6 w-full">
+                <Pagination>
+                    <PaginationContent>
+                        <PaginationItem>
+                            <PaginationPrevious
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    setPage((p) => Math.max(0, p - 1));
+                                }}
+                            />
+                        </PaginationItem>
+                        {Array.from({ length: totalPages <= 5 ? totalPages : 5 }).map((_, i) => (
+                            <PaginationItem key={i}>
+                                <PaginationLink
+                                    isActive={i === page}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        setPage(i);
+                                    }}
+                                >
+                                    {i + 1}
+                                </PaginationLink>
+                            </PaginationItem>
+                        ))}
+                        <PaginationItem>
+                            <PaginationNext
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    setPage((p) => (p + 1 < totalPages ? p + 1 : p));
+                                }}
+                            />
+                        </PaginationItem>
+                    </PaginationContent>
+                </Pagination>
+            </div>
+        </div>
+    );
 }

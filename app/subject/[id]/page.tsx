@@ -1,4 +1,4 @@
-"use client";
+'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -17,6 +17,7 @@ export default function CourseDetail() {
     const subjectId = useMemo(() => (params?.id ? Number(params.id) : 0), [params]);
 
     const [subjectName, setSubjectName] = useState('');
+    const [level, setLevel] = useState('');
     const [topics, setTopics] = useState<Topic[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -27,15 +28,18 @@ export default function CourseDetail() {
         setError(null);
         try {
             const subjectRes = await getSubjectByIdApi(subjectId);
-            const subjectPayload = subjectRes && typeof subjectRes === 'object' && 'data' in (subjectRes as any)
-                ? (subjectRes as any).data
-                : subjectRes;
+            const subjectPayload =
+                subjectRes && typeof subjectRes === 'object' && 'data' in (subjectRes as any)
+                    ? (subjectRes as any).data
+                    : subjectRes;
             setSubjectName(subjectPayload?.name || subjectPayload?.data?.name || '');
+            setLevel(subjectPayload?.level || subjectPayload?.data?.level || '');
 
             const topicsRes = await getSubjectTopicsApi(subjectId);
-            const topicsPayload = topicsRes && typeof topicsRes === 'object' && 'data' in (topicsRes as any)
-                ? (topicsRes as any).data
-                : topicsRes;
+            const topicsPayload =
+                topicsRes && typeof topicsRes === 'object' && 'data' in (topicsRes as any)
+                    ? (topicsRes as any).data
+                    : topicsRes;
             const list: Topic[] = Array.isArray(topicsPayload?.items)
                 ? topicsPayload.items
                 : Array.isArray(topicsPayload)
@@ -55,16 +59,31 @@ export default function CourseDetail() {
     }, [subjectId]);
 
     return (
-        <div className="py-6 px-12">
-            <div className="flex items-center justify-between mb-6">
+        <div className="px-12 py-6">
+            <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-3">
-                    <button onClick={() => router.back()} className="border px-3 py-2 rounded-full text-sm flex items-center gap-2" aria-label="Go back">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline-block">
+                    <button
+                        onClick={() => router.replace(`/subject`)}
+                        className="flex items-center gap-2 hover:bg-gray-50 px-3 py-2 border rounded-full text-sm cursor-pointer"
+                        aria-label="Go back"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="inline-block"
+                        >
                             <path d="M19 12H5" />
                             <path d="M12 19l-7-7 7-7" />
                         </svg>
                     </button>
-                    <h1 className="font-semibold text-2xl text-[#333]">{subjectName || 'Subject'}</h1>
+                    <h1 className="font-semibold text-[#333] text-2xl">{subjectName || 'Subject'}</h1>
                 </div>
             </div>
 
@@ -78,10 +97,15 @@ export default function CourseDetail() {
                             <div className="flex justify-between items-center w-full">
                                 <div className="flex items-center gap-4">
                                     <span className="font-medium">
-                                        {(typeof t.orderIndex === 'number' ? t.orderIndex : idx + 1)}. {t.title}
+                                        {typeof t.orderIndex === 'number' ? t.orderIndex : idx + 1}. {t.title}
                                     </span>
                                 </div>
-                                <Link href={`/subject/${subjectId}/topic/${t.id}`} className="text-primary text-sm hover:underline">Xem chủ đề</Link>
+                                <Link
+                                    href={`/subject/${subjectId}/topic/${t.id}`}
+                                    className="text-primary text-sm hover:underline"
+                                >
+                                    Xem chủ đề
+                                </Link>
                             </div>
                         </div>
                     ))}
@@ -91,14 +115,18 @@ export default function CourseDetail() {
                 </div>
 
                 <aside className="hidden lg:block">
-                    <div className="top-24 sticky bg-white p-4 border rounded-lg">
+                    <div className="top-24 sticky bg-white shadow p-4 border rounded-lg">
                         <div className="bg-[#f5f5f5] mb-4 rounded-md w-full h-44 overflow-hidden">
-                            <img src={`https://picsum.photos/seed/${subjectId}/800/600`} alt="subject cover" className="w-full h-44 object-cover" />
+                            <img
+                                src={`https://picsum.photos/seed/${subjectId}/800/600`}
+                                alt="subject cover"
+                                className="w-full h-44 object-cover"
+                            />
                         </div>
                         <h3 className="mb-2 font-semibold text-lg">{subjectName || 'Subject'}</h3>
-                        <div className="mb-3 text-muted-foreground text-sm">Mức độ: <span className="text-foreground">—</span></div>
-                        <button className="bg-rose-600 hover:bg-rose-700 mb-2 py-2 rounded-md w-full text-white">Ghi danh ngay</button>
-                        <button className="py-2 border border-gray-200 rounded-md w-full text-sm">Thêm vào danh sách</button>
+                        <div className="mb-3 text-muted-foreground text-sm">
+                            Mức độ: <span className="font-semibold">{level || '—'}</span>
+                        </div>
                     </div>
                 </aside>
             </div>

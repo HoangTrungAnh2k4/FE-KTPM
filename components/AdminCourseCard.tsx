@@ -14,6 +14,7 @@ type Props = {
     onDelete: (id: number) => void;
     onEdit: (id: number) => void;
     onViewDetail: (id: number) => void;
+    onAssignInstructor: (id: number) => void;
 };
 
 export default function AdminCourseCard({
@@ -29,6 +30,7 @@ export default function AdminCourseCard({
     onDelete,
     onEdit,
     onViewDetail,
+    onAssignInstructor,
 }: Props) {
     return (
         <div
@@ -62,21 +64,6 @@ export default function AdminCourseCard({
                     </div>
 
                     <div className="flex items-center gap-1">
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="w-4 h-4"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                        >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3" />
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M12 20a8 8 0 100-16 8 8 0 000 16z"
-                            />
-                        </svg>
                         <span>{duration}</span>
                     </div>
                 </div>
@@ -86,7 +73,7 @@ export default function AdminCourseCard({
                 <div className="flex justify-between items-center mt-4">
                     <div className="flex items-baseline gap-1">
                         <p
-                            className="mt-2 text-gray-600 text-sm leading-relaxed max-w-40"
+                            className="mt-2 max-w-40 text-gray-600 text-sm leading-relaxed"
                             style={{
                                 display: '-webkit-box',
                                 WebkitLineClamp: 2,
@@ -136,6 +123,15 @@ export default function AdminCourseCard({
                                     className="hover:bg-gray-100 px-4 py-2 rounded cursor-pointer"
                                 >
                                     Edit Course
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onAssignInstructor(id);
+                                    }}
+                                    className="hover:bg-blue-50 px-4 py-2 rounded cursor-pointer"
+                                >
+                                    Assign Instructor
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                     onClick={(e) => {

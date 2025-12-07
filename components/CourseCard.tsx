@@ -15,7 +15,7 @@ export default function CourseCard({ id, image, category, duration, title, descr
     return (
         <div className="bg-card shadow-xl p-4 rounded-2xl">
             <div className="bg-white rounded-xl overflow-hidden">
-                <Image src={image} alt={title} width={600} height={360} className="w-full h-48 object-cover" />
+                <Image src={image} alt={title} width={600} height={260} className="w-full h-36 object-cover" />
             </div>
 
             <div className="mt-4 px-2">
@@ -39,21 +39,6 @@ export default function CourseCard({ id, image, category, duration, title, descr
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="w-4 h-4 text-gray-400"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                        >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3" />
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M12 20a8 8 0 100-16 8 8 0 000 16z"
-                            />
-                        </svg>
                         <span>{duration}</span>
                     </div>
                 </div>
@@ -62,14 +47,13 @@ export default function CourseCard({ id, image, category, duration, title, descr
 
                 <p className="mt-3 text-muted-foreground text-sm">{description}</p>
 
-                <div className="flex justify-between items-center mt-6">
+                <div className="flex justify-center items-center mt-6">
                     <Link
                         href={`/subject/${id}`}
-                        className="bg-primary px-4 py-2 rounded-full font-medium text-white text-sm"
+                        className="bg-primary hover:bg-[#35aba3] px-4 py-2 rounded-full w-full font-medium text-white text-sm text-center"
                     >
                         Watch Lecture
                     </Link>
-                    <div className="font-medium text-green-500 text-sm">{progress ?? '0% Completed'}</div>
                 </div>
             </div>
         </div>

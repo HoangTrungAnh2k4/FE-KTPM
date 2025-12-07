@@ -7,6 +7,8 @@ export type User = {
     name: string;
     role: 'ADMIN' | 'STUDENT' | 'INSTRUCTOR';
     avatar: string;
+    phone: string;
+    age: number;
 };
 
 type State = {

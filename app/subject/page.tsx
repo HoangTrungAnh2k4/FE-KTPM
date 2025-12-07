@@ -74,9 +74,6 @@ export default function SubjectPage() {
 
             <div className="flex justify-between items-center mt-8">
                 <p className="font-semibold text-[#333] text-xl">Subjects</p>
-                <Link href="#" className="font-medium text-primary hover:underline">
-                    See all
-                </Link>
             </div>
 
             {loading && <p>Đang tải...</p>}

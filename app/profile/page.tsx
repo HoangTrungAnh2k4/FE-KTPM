@@ -31,78 +31,82 @@ const ProfilePage: React.FC = () => {
 
     const primaryRole = useMemo(() => normalizeRole(form.roles[0] || user?.role), [form.roles, user?.role]);
 
-    useEffect(() => {
-        // Seed form from store if available to avoid blank UI while fetching fresh data.
-        if (user) {
-            setForm((prev) => ({
-                fullName: prev.fullName || user.name || '',
-                email: prev.email || user.email || '',
-                phone: prev.phone || '',
-                age: prev.age || '',
-                roles: prev.roles.length ? prev.roles : [user.role],
-            }));
-        }
-    }, [user]);
-
-    useEffect(() => {
-        const fetchProfile = async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                const data = await getUserProfileApi();
-                setForm({
-                    fullName: data.fullName || data.name || '',
-                    email: data.email || '',
-                    phone: data.phone || '',
-                    age: data.age ? String(data.age) : '',
-                    roles: data.roles || (data.role ? [data.role] : []),
-                });
-                setUser({
-                    id: String(data.id ?? ''),
-                    email: data.email || '',
-                    name: data.fullName || data.name || '',
-                    role: normalizeRole((data.roles && data.roles[0]) || data.role),
-                    avatar: data.avatar || '',
-                });
-            } catch (err) {
-                setError('Không thể tải thông tin tài khoản.');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchProfile();
-    }, [setUser]);
-
     const handleChange = (field: keyof ProfileForm, value: string) => {
         setForm((prev) => ({ ...prev, [field]: value }));
     };
 
     const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
-        setSaving(true);
         setError(null);
         setMessage(null);
+
+        // Validate required fields
+        if (!form.fullName.trim()) {
+            setError('Họ và tên không được để trống');
+            return;
+        }
+
+        if (!form.phone.trim()) {
+            setError('Số điện thoại không được để trống');
+            return;
+        }
+
+        if (!form.age.trim()) {
+            setError('Tuổi không được để trống');
+            return;
+        }
+
+        // Validate phone number format (Vietnamese phone numbers: 10 digits, starts with 0)
+        const phoneRegex = /^0[0-9]{9}$/;
+        if (!phoneRegex.test(form.phone.trim())) {
+            setError('Số điện thoại không hợp lệ (phải bắt đầu bằng 0 và có đúng 10 số)');
+            return;
+        }
+
+        // Validate age
+        const ageNum = parseInt(form.age, 10);
+        if (isNaN(ageNum) || ageNum <= 0 || ageNum > 150) {
+            setError('Tuổi phải là số từ 1 đến 150');
+            return;
+        }
+
+        setSaving(true);
+
         try {
-            const payload = {
-                fullName: form.fullName || undefined,
-                phone: form.phone || undefined,
-                age: form.age ? Number(form.age) : undefined,
-            };
+            const updateData: { fullName?: string; phone?: string; age?: number } = {};
 
-            const data = await updateUserProfileApi(payload);
+            if (form.fullName.trim() !== user?.name) {
+                updateData.fullName = form.fullName.trim();
+            }
+            if (form.phone.trim() !== user?.phone) {
+                updateData.phone = form.phone.trim();
+            }
+            if (ageNum !== user?.age) {
+                updateData.age = ageNum;
+            }
 
-            setMessage('Cập nhật thành công.');
+            if (Object.keys(updateData).length === 0) {
+                setMessage('Không có thay đổi nào để cập nhật');
+                setSaving(false);
+                return;
+            }
+
+            await updateUserProfileApi(updateData);
+
             setUser({
-                id: String(data.id ?? user?.id ?? ''),
-                email: data.email || form.email,
-                name: data.fullName || data.name || form.fullName,
-                role: normalizeRole((data.roles && data.roles[0]) || data.role || primaryRole),
-                avatar: data.avatar || user?.avatar || '',
+                ...user!,
+                name: form.fullName.trim(),
+                phone: form.phone.trim(),
+                age: ageNum,
             });
-            setOpen(false);
-        } catch (err) {
-            setError('Cập nhật thất bại. Vui lòng thử lại.');
+
+            setMessage('Cập nhật thông tin thành công!');
+            setTimeout(() => {
+                setOpen(false);
+                setMessage(null);
+            }, 1500);
+        } catch (err: any) {
+            setError(err.response?.data?.message || 'Có lỗi xảy ra khi cập nhật thông tin');
         } finally {
             setSaving(false);
         }
@@ -135,7 +139,7 @@ const ProfilePage: React.FC = () => {
                         <form className="space-y-4" onSubmit={handleSubmit}>
                             <div>
                                 <label className="block mb-1 font-semibold text-sm" htmlFor="fullName">
-                                    Họ và tên
+                                    Họ và tên <span className="text-red-500">*</span>
                                 </label>
                                 <input
                                     id="fullName"
@@ -144,25 +148,13 @@ const ProfilePage: React.FC = () => {
                                     value={form.fullName}
                                     onChange={(e) => handleChange('fullName', e.target.value)}
                                     placeholder="Nhập họ tên"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block mb-1 font-semibold text-sm" htmlFor="email">
-                                    Email
-                                </label>
-                                <input
-                                    id="email"
-                                    className="bg-gray-100 px-3 py-2 border rounded w-full text-gray-600"
-                                    type="email"
-                                    value={form.email}
-                                    disabled
+                                    required
                                 />
                             </div>
 
                             <div>
                                 <label className="block mb-1 font-semibold text-sm" htmlFor="phone">
-                                    Số điện thoại
+                                    Số điện thoại <span className="text-red-500">*</span>
                                 </label>
                                 <input
                                     id="phone"
@@ -170,28 +162,26 @@ const ProfilePage: React.FC = () => {
                                     type="tel"
                                     value={form.phone}
                                     onChange={(e) => handleChange('phone', e.target.value)}
-                                    placeholder="Nhập số điện thoại"
+                                    placeholder="VD: 0912345678"
+                                    required
                                 />
                             </div>
 
                             <div>
                                 <label className="block mb-1 font-semibold text-sm" htmlFor="age">
-                                    Tuổi
+                                    Tuổi <span className="text-red-500">*</span>
                                 </label>
                                 <input
                                     id="age"
                                     className="px-3 py-2 border rounded w-full"
                                     type="number"
-                                    min="0"
+                                    min="1"
+                                    max="150"
                                     value={form.age}
                                     onChange={(e) => handleChange('age', e.target.value)}
                                     placeholder="Nhập tuổi"
+                                    required
                                 />
-                            </div>
-
-                            <div>
-                                <label className="block mb-1 font-semibold text-sm">Vai trò</label>
-                                <p className="bg-gray-100 px-3 py-2 border rounded text-gray-700">{primaryRole}</p>
                             </div>
 
                             {error && <p className="text-red-600 text-sm">{error}</p>}
@@ -200,7 +190,7 @@ const ProfilePage: React.FC = () => {
                             <DialogFooter>
                                 <button
                                     type="submit"
-                                    className="bg-primary disabled:opacity-60 px-4 py-2 rounded w-full font-semibold text-white"
+                                    className="bg-primary hover:bg-primary/90 disabled:opacity-60 px-4 py-2 rounded w-full font-semibold text-white cursor-pointer"
                                     disabled={saving}
                                 >
                                     {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
@@ -214,19 +204,19 @@ const ProfilePage: React.FC = () => {
             <div className="space-y-2">
                 <div>
                     <span className="font-semibold">Tên người dùng: </span>
-                    <span>{form.fullName || form.email}</span>
+                    <span>{user?.name}</span>
                 </div>
                 <div>
                     <span className="font-semibold">Email: </span>
-                    <span>{form.email}</span>
+                    <span>{user?.email}</span>
                 </div>
                 <div>
                     <span className="font-semibold">Số điện thoại: </span>
-                    <span>{form.phone || 'Chưa cập nhật'}</span>
+                    <span>{user?.phone || 'Chưa cập nhật'}</span>
                 </div>
                 <div>
                     <span className="font-semibold">Tuổi: </span>
-                    <span>{form.age || 'Chưa cập nhật'}</span>
+                    <span>{user?.age || 'Chưa cập nhật'}</span>
                 </div>
                 <div>
                     <span className="font-semibold">Vai trò: </span>

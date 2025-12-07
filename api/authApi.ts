@@ -32,3 +32,17 @@ export async function verifyEmailApi(email: string, code: string) {
     const res = await axios.post(`${API_BACKEND_URL}/auth/verify?email=${email}&code=${code}`);
     return res.data;
 }
+
+export async function forgotPasswordApi(email: string) {
+    const res = await axios.post(`${API_BACKEND_URL}/auth/me/password/forgot?email=${email}`);
+    return res.data;
+}
+
+export async function resetPasswordApi(email: string, otp: string, newPassword: string) {
+    const res = await axios.post(`${API_BACKEND_URL}/auth/me/password/reset`, {
+        email,
+        otp,
+        newPassword,
+    });
+    return res.data;
+}

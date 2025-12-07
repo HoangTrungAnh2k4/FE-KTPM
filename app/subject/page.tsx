@@ -13,6 +13,7 @@ type Subject = {
     level: string;
     description?: string;
     status?: 'ACTIVE' | 'INACTIVE' | 'ARCHIVED';
+    instructors?: { instructorId: number; instructorName: string }[];
 };
 
 export default function SubjectPage() {
@@ -65,6 +66,7 @@ export default function SubjectPage() {
             title: `${s.code} - ${s.name}`,
             description: s.description || '',
             progress: '',
+            assign: (s.instructors || []).map((i) => i.instructorName).join(', '),
         }));
     }, [subjects]);
 
@@ -90,6 +92,7 @@ export default function SubjectPage() {
                         title={c.title}
                         description={c.description}
                         progress={c.progress}
+                        assign={c.assign}
                     />
                 ))}
             </div>

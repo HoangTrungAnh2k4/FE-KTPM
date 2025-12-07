@@ -70,6 +70,10 @@ export default function AdminCourseCard({
 
                 <h3 className="mt-3 font-semibold text-[#333] text-lg">{title}</h3>
 
+                <p className="mt-2 text-gray-500 text-xs">
+                    <span className="font-medium">Assign:</span> {assign}
+                </p>
+
                 <div className="flex justify-between items-center mt-4">
                     <div className="flex items-baseline gap-1">
                         <p
@@ -84,11 +88,6 @@ export default function AdminCourseCard({
                         >
                             {description}
                         </p>
-                        {assign && (
-                            <p className="mt-2 text-gray-500 text-xs">
-                                <span className="font-medium">Assign:</span> {assign}
-                            </p>
-                        )}
                     </div>
                     {/* Three dots menu */}
                     <div className="">
@@ -123,15 +122,6 @@ export default function AdminCourseCard({
                                     className="hover:bg-gray-100 px-4 py-2 rounded cursor-pointer"
                                 >
                                     Edit Course
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        onAssignInstructor(id);
-                                    }}
-                                    className="hover:bg-blue-50 px-4 py-2 rounded cursor-pointer"
-                                >
-                                    Assign Instructor
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                     onClick={(e) => {

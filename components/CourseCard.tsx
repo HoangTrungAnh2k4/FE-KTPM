@@ -9,9 +9,10 @@ type Props = {
     title: string;
     description: string;
     progress?: string;
+    assign?: string;
 };
 
-export default function CourseCard({ id, image, category, duration, title, description, progress }: Props) {
+export default function CourseCard({ id, image, category, duration, title, description, assign }: Props) {
     return (
         <div className="bg-card shadow-xl p-4 rounded-2xl">
             <div className="bg-white rounded-xl overflow-hidden">
@@ -44,6 +45,9 @@ export default function CourseCard({ id, image, category, duration, title, descr
                 </div>
 
                 <h3 className="mt-3 font-semibold text-foreground text-xl">{title}</h3>
+                <p className="mt-2 text-gray-500 text-xs">
+                    <span className="font-medium">Assign:</span> {assign}
+                </p>
 
                 <p className="mt-3 text-muted-foreground text-sm">{description}</p>
 
